@@ -1,6 +1,6 @@
 # WebNew - Website Translation Platform
 
-A modern, production-ready website translation platform that provides real-time translation capabilities similar to Weglot. Built with modern web technologies and deployed on Vercel.
+A modern website translation platform that provides real-time translation capabilities. Built with Next.js, React, and modern web technologies.
 
 ## 🌟 Features
 
@@ -21,8 +21,8 @@ A modern, production-ready website translation platform that provides real-time 
 - **Demo Walkthrough**: Interactive demo for presentations
 
 ### Technical Features
-- **Real API Integration**: LibreTranslate for actual translations (not mock)
-- **Database Storage**: Supabase for translation history persistence
+- **Real API Integration**: LibreTranslate for actual translations (with fallback support)
+- **Database Storage**: Supabase for translation history persistence (optional)
 - **Pagination**: Efficient history loading with "Load More" functionality
 - **Export Functionality**: CSV download of translation history
 - **Performance Optimized**: Fast loading and smooth animations
@@ -30,19 +30,19 @@ A modern, production-ready website translation platform that provides real-time 
 ## 🚀 Tech Stack
 
 ### Frontend
-- **HTML5**: Semantic markup and accessibility
-- **CSS3**: Modern styling with Flexbox/Grid, animations, and responsive design
-- **Vanilla JavaScript**: ES6+ features, async/await, modern DOM manipulation
+- **Next.js 14**: React framework with server-side rendering
+- **React 18**: Modern UI library
+- **HTML5/CSS3**: Semantic markup and modern styling with Flexbox/Grid, animations, and responsive design
+- **JavaScript (ES6+)**: Client-side scripting with async/await and modern DOM manipulation
 
 ### Backend
-- **Node.js**: Serverless functions on Vercel
-- **TypeScript**: Type-safe API endpoints
-- **Supabase**: PostgreSQL database for translation history
-- **LibreTranslate API**: Real translation service
+- **Next.js API Routes**: Serverless API endpoints in `/pages/api`
+- **TypeScript**: Type-safe API endpoints (some endpoints)
+- **Supabase**: PostgreSQL database for translation history storage (optional)
+- **LibreTranslate API**: Real translation service integration
 
-### Deployment
-- **Vercel**: Serverless deployment with automatic scaling
-- **Environment Variables**: Secure configuration management
+### Infrastructure
+- **Environment Variables**: Secure configuration management via `.env.local`
 
 ## 📁 Project Structure
 
@@ -50,19 +50,34 @@ A modern, production-ready website translation platform that provides real-time 
 webnew-translation-platform/
 ├── public/                 # Static assets
 │   ├── logo.png
-│   └── rose-logo.png
+│   └── 20250713_0023_White_Rose_Logo_simple_compose_01jzzzr2sfe6yshwjhqz5w944a-removebg-preview.png
 ├── styles/                 # CSS stylesheets
 │   └── style.css
-├── scripts/                # JavaScript files
-│   └── script.js
-├── api/                    # Backend API endpoints
-│   ├── translate.js        # Translation API
-│   ├── history.ts          # History management
-│   └── history/
-│       └── clear.ts        # Clear history endpoint
-├── index.html              # Main application file
+├── scripts/                # Client-side JavaScript
+│   ├── script.js           # Main application logic
+│   ├── 001_create_translation_history.sql
+│   └── test-database-integration.js
+├── pages/                  # Next.js pages and API routes
+│   ├── index.js            # Main page (renders index.html content)
+│   └── api/                # API endpoints
+│       ├── translate.js    # Translation API
+│       ├── history.js      # History management
+│       ├── clearHistory.js # Clear history endpoint
+│       └── delete/[id].js  # Delete translation endpoint
+├── api/                    # Additional API endpoints (may be duplicates)
+│   ├── translate.js
+│   ├── history.ts
+│   └── history/clear.ts
+├── lib/                    # Library utilities
+│   └── superbase/          # Supabase client configuration (note: folder name typo)
+│       ├── client.ts
+│       └── server.ts
+├── types/                  # TypeScript type definitions
+│   └── translation.ts
+├── index.html              # HTML template (rendered in pages/index.js)
 ├── package.json            # Dependencies and scripts
-├── vercel.json             # Vercel deployment configuration
+├── next.config.js          # Next.js configuration
+├── tsconfig.json           # TypeScript configuration
 └── README.md               # Project documentation
 ```
 
@@ -70,8 +85,8 @@ webnew-translation-platform/
 
 ### Prerequisites
 - Node.js 18+ 
-- Vercel CLI (for deployment)
-- Supabase account (for database)
+- npm or yarn package manager
+- Supabase account (for database - optional, app works without it)
 
 ### Local Development
 
@@ -86,16 +101,19 @@ webnew-translation-platform/
    npm install
    ```
 
-3. **Set up environment variables**
-   Create a `.env.local` file:
+3. **Set up environment variables (Optional)**
+   Create a `.env.local` file in the root directory:
    ```env
-   SUPABASE_URL=your_supabase_url
-   SUPABASE_ANON_KEY=your_supabase_anon_key
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   LIBRETRANSLATE_URL=https://libretranslate.de
+   LIBRETRANSLATE_API_KEY=your_api_key_if_needed
    ```
+   Note: The app will work without Supabase configuration, but translation history won't be saved.
 
 4. **Run development server**
    ```bash
-   vercel dev
+   npm run dev
    ```
 
 5. **Open in browser**
@@ -104,54 +122,62 @@ webnew-translation-platform/
 ### Database Setup (Supabase)
 
 1. **Create a new Supabase project**
-2. **Create the translation_history table**:
+
+2. **Run the database setup script**:
+   Execute the SQL script from `scripts/001_create_translation_history.sql` in your Supabase SQL Editor, or manually create the table:
+   
    ```sql
-   CREATE TABLE translation_history (
-     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+   CREATE TABLE IF NOT EXISTS public.translation_history (
+     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
      original_text TEXT NOT NULL,
      translated_text TEXT NOT NULL,
-     source_language VARCHAR(10) DEFAULT 'en',
-     target_language VARCHAR(20) NOT NULL,
-     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+     target_language VARCHAR(10) NOT NULL,
+     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
    );
    ```
 
-3. **Enable Row Level Security (RLS)**:
-   ```sql
-   ALTER TABLE translation_history ENABLE ROW LEVEL SECURITY;
+3. **The setup script includes**:
+   - Row Level Security (RLS) policies for public access
+   - Indexes for better query performance
+   - Automatic `updated_at` timestamp trigger
    
-   CREATE POLICY "Allow all operations" ON translation_history
-   FOR ALL USING (true);
-   ```
+   Note: See `scripts/001_create_translation_history.sql` for the complete setup including all indexes and policies.
 
 ## 🚀 Deployment
 
-### Deploy to Vercel
+This is a Next.js application and can be deployed to any platform that supports Next.js.
 
-1. **Install Vercel CLI**
-   ```bash
-   npm i -g vercel
-   ```
+### Current Deployment
 
-2. **Login to Vercel**
-   ```bash
-   vercel login
-   ```
+The project is currently deployed on **GitHub Pages**:
+- **Live Demo**: [https://dey70.github.io/WebNew-AI-Powered-Website-Translation-Platform/](https://dey70.github.io/WebNew-AI-Powered-Website-Translation-Platform/)
 
-3. **Deploy**
-   ```bash
-   vercel --prod
-   ```
+**Note**: GitHub Pages serves static files only. API routes (`/api/*`) require a separate backend deployment. The frontend can make direct calls to external APIs (like LibreTranslate) from the client side.
 
-4. **Set environment variables in Vercel dashboard**:
-   - `SUPABASE_URL`: Your Supabase project URL
-   - `SUPABASE_ANON_KEY`: Your Supabase anonymous key
+### Deployment Options
 
-### Alternative Deployment Methods
+#### GitHub Pages (Current)
+- Deploy the static frontend to GitHub Pages
+- API routes need to be hosted separately (e.g., Vercel, Netlify Functions, or a Node.js server)
+- Free hosting for static sites
+- Easy integration with GitHub repositories
 
-- **Netlify**: Use `netlify.toml` configuration
-- **GitHub Pages**: For static hosting (API functions won't work)
-- **AWS S3 + Lambda**: For AWS deployment
+#### Vercel
+1. **Push your code to GitHub/GitLab/Bitbucket**
+2. **Import project in Vercel dashboard**
+3. **Set environment variables**:
+   - `NEXT_PUBLIC_SUPABASE_URL`: Your Supabase project URL
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Your Supabase anonymous key
+   - `LIBRETRANSLATE_URL`: (optional) LibreTranslate API URL
+   - `LIBRETRANSLATE_API_KEY`: (optional) LibreTranslate API key
+4. **Deploy** - Vercel will automatically detect Next.js and deploy (API routes work out of the box)
+
+#### Other Options
+- **Netlify**: Use Netlify's Next.js runtime (API routes supported)
+- **AWS Amplify**: Supports Next.js out of the box
+- **Docker**: Build and run with `docker build` using Next.js Dockerfile
+- **Node.js server**: Run `npm run build && npm start` on any Node.js hosting
 
 ## 🎯 Usage
 
@@ -198,9 +224,9 @@ DELETE /api/history/:id
 ## 🎨 Customization
 
 ### Adding New Languages
-1. Update `languageConfigs` in `script.js`
-2. Add language code mapping in `translate.js`
-3. Update language dropdown in `index.html`
+1. Update `languageConfigs` in `scripts/script.js`
+2. Add language code mapping in `pages/api/translate.js` (internalToIso mapping)
+3. Update language dropdown in `index.html` or `pages/index.js`
 
 ### Styling Changes
 - Modify `styles/style.css` for visual updates
@@ -227,15 +253,16 @@ DELETE /api/history/:id
    - Ensure RLS policies are correct
 
 3. **Deployment issues**
-   - Check Vercel environment variables
-   - Verify API function syntax
-   - Check Vercel deployment logs
+   - Check environment variables in your deployment platform
+   - Verify API route syntax (Next.js API routes)
+   - Check deployment platform logs
+   - Ensure Next.js build completes successfully (`npm run build`)
 
 ### Performance Optimization
-- Enable Vercel Edge Functions for faster API responses
 - Implement caching for translation results
-- Optimize images and assets
+- Optimize images and assets (use Next.js Image component)
 - Use CDN for static resources
+- Consider implementing API response caching
 
 ## 📊 Performance Metrics
 
@@ -281,7 +308,9 @@ For support and questions:
 
 ## 🎉 Demo
 
-**Live Demo**: [https://webnew-translation.vercel.app](https://webnew-translation.vercel.app)
+**Live Demo**: [https://dey70.github.io/WebNew-AI-Powered-Website-Translation-Platform/](https://dey70.github.io/WebNew-AI-Powered-Website-Translation-Platform/)
+
+The live demo is hosted on GitHub Pages and demonstrates all core features including real-time translation, language selection, and translation history.
 
 **Demo Video**: [Link to demo video]
 
@@ -291,31 +320,21 @@ For support and questions:
 
 **WebNew Team** - Building the future of website translation 🚀
 
-## Deployment (Vercel)
+## 📝 Application Flow
 
-- Required environment variables:
-  - `NEXT_PUBLIC_SUPABASE_URL`
-  - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-  - `LIBRETRANSLATE_URL` (optional, defaults to https://libretranslate.com)
-  - `LIBRETRANSLATE_API_KEY` (optional if your LibreTranslate requires a key)
-  - `NEXT_PUBLIC_BASE_URL` (optional for local dev; Vercel sets `VERCEL_URL` automatically)
+### User Journey
+1. **Landing Page** → Navigate to Dashboard section
+2. **Enter text** → Select target language → Click "Translate" (calls `/api/translate`)
+3. **View results** → Translated text appears in output area
+4. **Translation History** → View paginated history via `/api/history`
+5. **Manage History** → 
+   - Clear all: `/api/history/clear` or `/api/clearHistory`
+   - Delete single item: `/api/delete/[id]` or `/api/history` (DELETE method)
+   - Download CSV: Export functionality in history section
 
-- Supabase table: `translation_history`
-  - Columns: `id (uuid)`, `original_text (text)`, `translated_text (text)`, `target_language (text)`, `created_at (timestamp, default now())`
-
-### Local setup
-1. `npm install`
-2. Create `.env.local` with the env vars above
-3. `npm run dev`
-
-### Vercel setup
-1. Import the repo in Vercel
-2. Add the environment variables in Project Settings → Environment Variables
-3. Deploy; APIs are under `/api/*`
-
-## Demo Flow
-- Landing Page → Dashboard
-- Enter text → Select language → Translate (calls `/api/translate`)
-- View output and history (paginated via `/api/history`)
-- Clear history (`/api/history/clear` or `/api/clearHistory`) and delete single items (`/api/history?id=...` or `/api/delete/:id`)
-- Download CSV via history section
+### API Endpoints Summary
+- `POST /api/translate` - Translate text
+- `GET /api/history` - Get paginated translation history
+- `POST /api/history` - Save translation to database
+- `DELETE /api/history/:id` - Delete specific translation
+- `POST /api/history/clear` or `/api/clearHistory` - Clear all history
