@@ -301,7 +301,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 📚 Project Documentation
 
-- **Weekly Progress Reports**: [Week 8-12 Progress Reports](https://docs.google.com/document/d/1S6bjPD5UB2Bpy-xvc9MFPrPH3HYbbgPCy5deSno_ieA/edit?tab=t.0)
+- **Weekly Progress Reports**: [Week 1-12 Progress Reports](https://docs.google.com/document/d/1S6bjPD5UB2Bpy-xvc9MFPrPH3HYbbgPCy5deSno_ieA/edit?tab=t.0)
 
 ## 📞 Support
 
