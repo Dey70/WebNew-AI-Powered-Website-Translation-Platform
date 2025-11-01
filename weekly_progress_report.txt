@@ -1,0 +1,309 @@
+================================================================================
+                    WEBNEW TRANSLATION PLATFORM
+                    WEEKLY PROGRESS REPORTS
+                    Weeks 8-12
+================================================================================
+
+Team Members: Rajdeep Dey, Harshjit Singh Dhami
+Project: WebNew – Website Translation Platform
+
+================================================================================
+                    WEEK 8 PROGRESS REPORT
+                    Date: 18th August – 24th August 2025
+================================================================================
+
+What we did this week –
+In Week 8, we focused on building the foundation for the backend and overall project structure, while aligning the website closer to professional platforms like weglot.com. Key accomplishments include:
+
+• Established a clean folder structure for better organization:
+  - /public – images, logos, and static assets
+  - /styles – CSS files
+  - /scripts – JavaScript files
+  - /api – backend API functions (Next.js API routes)
+  - index.html – main entry point
+
+• Set up the initial backend foundation using a mock translation API (/api/translate.js).
+  - Accepts text + target language.
+  - Returns a simulated translated response for now.
+
+• Connected the frontend Dashboard to the backend API via fetch requests.
+  - Input text and selected language are sent to the API.
+  - Mock translated output is displayed in the output textarea.
+
+• Implemented a Translation History section (frontend-only, using localStorage).
+  - Stores recent translations (up to 5).
+  - Displays them neatly below the Dashboard for quick reference.
+
+• Conducted cleanup and simplification of the design, removing unnecessary clutter to bring it closer to weglot.com style — clean, minimal, and professional.
+
+Visuals Added –
+• Dashboard → Backend Flow – Translation request/response simulation.
+• History Section – Showing last 5 translations.
+• Updated Folder Structure – Organized for frontend + backend.
+• Landing Page (Refined) – Cleaner and closer to weglot.com reference.
+
+Plan/Tasks for the Next Week –
+• Expand backend API to handle more realistic translation logic.
+• Start integrating a database (MongoDB or SQL) for storing translation history.
+• Add more dynamic features to the history section (clear/delete options).
+• Enhance UI responsiveness and polish transitions for Dashboard.
+• Record an updated demo video showcasing end-to-end flow (Landing → Dashboard → History).
+
+
+================================================================================
+                    WEEK 9 PROGRESS REPORT
+                    Date: 25th August – 31st August 2025
+================================================================================
+
+What we did this week –
+In Week 9, we transitioned from mock data to real translation functionality and began database integration. Major milestones achieved:
+
+• Integrated real LibreTranslate API for actual translations.
+  - Replaced mock responses with live API calls to libretranslate.de.
+  - Implemented proper error handling with fallback mechanisms.
+  - Added support for 10+ languages (French, Spanish, German, Italian, Portuguese, Dutch, Russian, Chinese, Japanese, Korean).
+
+• Set up Supabase PostgreSQL database for persistent storage.
+  - Created translation_history table schema with proper indexes.
+  - Implemented Row Level Security (RLS) policies for data access.
+  - Added automatic timestamp triggers for created_at and updated_at fields.
+
+• Enhanced translation API with better validation and error handling.
+  - Input validation for text length (max 1000 characters).
+  - Proper language code normalization (internal keys to ISO codes).
+  - Comprehensive error messages for invalid requests.
+
+• Expanded Translation History functionality.
+  - Increased storage capacity from 5 to 50+ entries.
+  - Added individual delete functionality for history items.
+  - Implemented "Clear All" functionality for batch deletion.
+
+• Improved frontend-backend integration.
+  - Enhanced API response handling with success/error states.
+  - Added loading indicators during translation requests.
+  - Implemented proper error messages display to users.
+
+Visuals Added –
+• Real Translation Results – Actual translations from LibreTranslate API.
+• Database Connection Status – Visual indicators for storage state.
+• Enhanced History Section – Full CRUD operations (Create, Read, Delete).
+• Error Handling UI – User-friendly error messages and fallback notifications.
+
+Plan/Tasks for the Next Week –
+• Implement pagination for translation history (handle large datasets efficiently).
+• Add CSV export functionality for translation history.
+• Complete database integration and test with real Supabase connection.
+• Add character and word counter to input textarea.
+• Enhance error handling with more specific error types and user guidance.
+
+
+================================================================================
+                    WEEK 10 PROGRESS REPORT
+                    Date: 1st September – 7th September 2025
+================================================================================
+
+What we did this week –
+In Week 10, we focused on scalability, data management, and user experience enhancements. Key developments:
+
+• Implemented pagination system for translation history.
+  - Added page-based navigation (Previous/Next buttons).
+  - Configured default limit of 10 items per page.
+  - Displayed page information (Page X of Y) with proper controls.
+  - Efficiently handled large history datasets without performance issues.
+
+• Developed CSV export functionality.
+  - Created download button for exporting translation history.
+  - Generated CSV files with columns: Date, Original Text, Translated Text, Target Language.
+  - Implemented proper file naming with timestamps.
+  - Added success notifications for completed downloads.
+
+• Enhanced database integration and error resilience.
+  - Improved Supabase connection handling with fallback to localStorage.
+  - Added graceful degradation when database is unavailable.
+  - Implemented proper error logging and debugging information.
+  - Created test scripts for database connectivity verification.
+
+• Added real-time character and word counters.
+  - Live character count display in input section.
+  - Word count calculation and display.
+  - Visual feedback for character limits (approaching 1000 character limit).
+  - Debounced updates for better performance.
+
+• Expanded API capabilities.
+  - Added proper CORS headers for cross-origin requests.
+  - Implemented OPTIONS request handling for preflight checks.
+  - Enhanced response formats with success flags and metadata.
+  - Added processing time tracking for performance monitoring.
+
+Visuals Added –
+• Pagination Controls – Previous/Next navigation with page indicators.
+• Download Button – CSV export functionality in history section.
+• Character/Word Counters – Real-time statistics in input area.
+• Enhanced History Display – Paginated list with better organization.
+
+Plan/Tasks for the Next Week –
+• Implement source language detection (auto-detect from input text).
+• Add support for legacy API parameter formats (backward compatibility).
+• Enhance API error handling with more specific error types.
+• Add copy-to-clipboard functionality for translated text.
+• Improve loading states and user feedback throughout the application.
+
+
+================================================================================
+                    WEEK 11 PROGRESS REPORT
+                    Date: 8th September – 14th September 2025
+================================================================================
+
+What we did this week –
+In Week 11, we focused on advanced features, API robustness, and improving the overall user experience. Significant enhancements:
+
+• Implemented source language detection and selection.
+  - Added support for source language parameter in API.
+  - Language normalization handling both internal keys ("french") and ISO codes ("fr").
+  - Backward compatibility with legacy "language" parameter (while preferring "targetLanguage").
+  - Enhanced language validation for all supported languages.
+
+• Strengthened API error handling and fallback mechanisms.
+  - Multi-layer error handling: API errors → Service errors → Final fallback.
+  - Added timeout protection (10 seconds) for API requests.
+  - Comprehensive error logging for debugging.
+  - Graceful degradation ensures users always get a response, even if translation service fails.
+
+• Enhanced translation API with advanced features.
+  - Processing time tracking for performance monitoring.
+  - Character and word count included in API responses.
+  - Session ID tracking for analytics.
+  - Improved payload validation and sanitization.
+
+• Added copy-to-clipboard functionality.
+  - One-click copy button for translated text.
+  - Success notifications when text is copied.
+  - Visual feedback for copy actions.
+
+• Improved history management.
+  - Enhanced delete operations with better confirmation.
+  - Optimized localStorage management (keeping last 50 items).
+  - Better error handling for storage operations.
+
+• Code cleanup and optimization.
+  - Refactored API endpoints for better maintainability.
+  - Improved code organization and comments.
+  - Enhanced debugging capabilities with console logging.
+
+Visuals Added –
+• Copy Button – Clipboard functionality in output section.
+• Source Language Support – Language selection indicators.
+• Enhanced Error Messages – More informative user feedback.
+• Improved Loading States – Better visual feedback during operations.
+
+Plan/Tasks for the Next Week –
+• Final UI polish and responsive design improvements.
+• Complete testing of all features and edge cases.
+• Prepare comprehensive demo video showcasing all features.
+• Update documentation (README.md) with accurate project information.
+• Performance optimization and final bug fixes.
+• Prepare project for presentation/demonstration.
+
+
+================================================================================
+                    WEEK 12 PROGRESS REPORT
+                    Date: 15th September – 21st September 2025
+================================================================================
+
+What we did this week –
+In Week 12, we focused on finalization, polish, documentation, and preparing the project for presentation. Final week accomplishments:
+
+• Comprehensive UI/UX refinements.
+  - Polished all visual elements and transitions.
+  - Enhanced responsive design for mobile, tablet, and desktop.
+  - Improved color schemes and styling consistency.
+  - Added smooth animations and loading indicators throughout.
+
+• Complete feature testing and bug fixes.
+  - Tested all translation scenarios with various languages.
+  - Verified pagination with large datasets.
+  - Tested CSV export functionality thoroughly.
+  - Fixed edge cases in error handling.
+  - Validated all API endpoints with different input scenarios.
+
+• Documentation updates and accuracy.
+  - Rewrote README.md to reflect actual project structure and tech stack.
+  - Removed inaccurate deployment information.
+  - Added comprehensive setup instructions.
+  - Documented all API endpoints with examples.
+  - Included troubleshooting guide and common issues.
+
+• Performance optimizations.
+  - Optimized database queries and API responses.
+  - Improved client-side JavaScript performance.
+  - Added debouncing for counter updates.
+  - Enhanced localStorage management efficiency.
+
+• Enhanced user experience features.
+  - Added keyboard shortcuts (Ctrl+Enter for translate, Esc for clear).
+  - Improved notification system for user feedback.
+  - Enhanced history section with better visual organization.
+  - Added empty state messages for better UX.
+
+• Project structure cleanup.
+  - Organized all files and folders properly.
+  - Removed duplicate or unused files.
+  - Ensured consistent code formatting.
+  - Added proper comments and documentation in code.
+
+• Demo preparation.
+  - Prepared presentation materials.
+  - Created demo walkthrough script.
+  - Tested all features for smooth demonstration.
+  - Verified GitHub Pages deployment compatibility.
+
+Visuals Added –
+• Polished UI Elements – Final design refinements across all sections.
+• Enhanced Animations – Smooth transitions and loading states.
+• Improved Mobile Layout – Better responsive design.
+• Demo-Ready Interface – All features fully functional and polished.
+
+Plan/Tasks for Next Steps (Future Enhancements) –
+• User authentication system for personalized translation history.
+• Premium features and usage limits.
+• Website integration widget (JavaScript snippet for existing sites).
+• Bulk translation functionality (file upload support).
+• Translation memory and reuse of previous translations.
+• Analytics dashboard for usage statistics.
+• Advanced language support expansion.
+• Machine learning integration for improved translations.
+
+
+================================================================================
+                            PROJECT SUMMARY
+================================================================================
+
+Total Development Period: 5 weeks (Weeks 8-12)
+Final Status: Production-ready translation platform
+
+Key Achievements:
+✓ Real-time translation with LibreTranslate API
+✓ 10+ language support
+✓ Persistent storage with Supabase (with localStorage fallback)
+✓ Translation history with pagination
+✓ CSV export functionality
+✓ Character and word counters
+✓ Copy-to-clipboard feature
+✓ Comprehensive error handling
+✓ Responsive design
+✓ Professional UI matching industry standards
+✓ Complete documentation
+
+Tech Stack:
+• Frontend: Next.js 14, React 18, HTML5, CSS3, JavaScript (ES6+)
+• Backend: Next.js API Routes, TypeScript (partial)
+• Database: Supabase (PostgreSQL) with localStorage fallback
+• Translation Service: LibreTranslate API
+• Deployment: Next.js compatible platforms
+
+Project is ready for demonstration and deployment!
+
+================================================================================
+                            END OF REPORT
+================================================================================
+
