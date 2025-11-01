@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logo Test</title>
+    <style>
+        body {
+            background: #1a1a1a;
+            color: white;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .logo-test {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #333;
+            border-radius: 8px;
+        }
+        .logo-img {
+            width: 50px;
+            height: 60px;
+            object-fit: contain;
+            border: 2px solid #ff4444;
+            border-radius: 8px;
+        }
+        .rose-logo-img {
+            width: 100px;
+            height: auto;
+            border: 2px solid #ff4444;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Logo Test Page</h1>
+    
+    <div class="logo-test">
+        <h2>Main Logo Test</h2>
+        <img src="public/logo.png" alt="WebNew Logo" class="logo-img">
+        <p>Path: public/logo.png</p>
+    </div>
+    
+    <div class="logo-test">
+        <h2>Rose Logo Test</h2>
+        <img src="public/20250713_0023_White_Rose_Logo_simple_compose_01jzzzr2sfe6yshwjhqz5w944a-removebg-preview.png" alt="WebNew Rose Logo" class="rose-logo-img">
+        <p>Path: public/20250713_0023_White_Rose_Logo_simple_compose_01jzzzr2sfe6yshwjhqz5w944a-removebg-preview.png</p>
+    </div>
+    
+    <div class="logo-test">
+        <h2>Direct File Access Test</h2>
+        <p>Try accessing these URLs directly:</p>
+        <ul>
+            <li><a href="public/logo.png" target="_blank">public/logo.png</a></li>
+            <li><a href="public/20250713_0023_White_Rose_Logo_simple_compose_01jzzzr2sfe6yshwjhqz5w944a-removebg-preview.png" target="_blank">Rose Logo</a></li>
+        </ul>
+    </div>
+</body>
+</html>
