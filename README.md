@@ -299,6 +299,10 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
+## 📚 Project Documentation
+
+- **Weekly Progress Reports**: [Week 8-12 Progress Reports](https://docs.google.com/document/d/1S6bjPD5UB2Bpy-xvc9MFPrPH3HYbbgPCy5deSno_ieA/edit?tab=t.0)
+
 ## 📞 Support
 
 For support and questions:
