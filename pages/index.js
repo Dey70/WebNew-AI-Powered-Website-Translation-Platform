@@ -6,13 +6,13 @@ export default function Home() {
       <Head>
         <title>WebNew - Website Translation</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <link rel="stylesheet" href="/styles/style.css" />
+        <link rel="stylesheet" href="styles/style.css" />
       </Head>
       <div dangerouslySetInnerHTML={{ __html: `
         <!-- Header -->
         <header>
             <div class="logo-container">
-                <img src="/public/logo.png" alt="WebNew Logo" class="logo-img">
+                <img src="public/logo.png" alt="WebNew Logo" class="logo-img">
                 <h1>WebNew</h1>
             </div>
             <nav class="desktop-nav">
@@ -46,7 +46,7 @@ export default function Home() {
         <section class="hero">
             <div class="hero-content">
                 <div class="rose-logo-container">
-                    <img src="/public/20250713_0023_White_Rose_Logo_simple_compose_01jzzzr2sfe6yshwjhqz5w944a-removebg-preview.png" alt="WebNew Rose Logo" class="rose-logo-img">
+                    <img src="public/20250713_0023_White_Rose_Logo_simple_compose_01jzzzr2sfe6yshwjhqz5w944a-removebg-preview.png" alt="WebNew Rose Logo" class="rose-logo-img">
                 </div>
                 <h2>Instantly Translate Your Website in Minutes</h2>
                 <p>The fast and efficient website translation tool that enables users to translate their websites into multiple languages within minutes.</p>
@@ -454,7 +454,7 @@ export default function Home() {
           <!-- Column 1 - Logo and Description -->
           <div class="footer-col">
             <div class="footer-logo">
-              <img src="/public/logo.png" alt="WebNew Logo" class="logo-img">
+              <img src="public/logo.png" alt="WebNew Logo" class="logo-img">
               <h3>WebNew</h3>
             </div>
             <p class="footer-description">
