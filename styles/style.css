@@ -2668,3 +2668,126 @@ header {
   transform: scale(1.05);
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
+
+/* ===== Embed Section (CDN Snippet) ===== */
+.embed-section {
+  padding: 6rem 2rem;
+  background: linear-gradient(135deg, #0b0b0b 0%, #121212 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.embed-section::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 20% 10%, rgba(255, 68, 68, 0.08) 0%, transparent 40%),
+              radial-gradient(circle at 80% 90%, rgba(74, 144, 226, 0.08) 0%, transparent 40%);
+}
+
+.embed-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+.embed-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.embed-header .icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #ff4444, #ff6b6b);
+  box-shadow: 0 8px 24px rgba(255, 68, 68, 0.3);
+}
+
+.embed-title {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+}
+
+.embed-sub {
+  font-size: 1.1rem;
+  color: #b8b8b8;
+  margin-bottom: 1.25rem;
+}
+
+.embed-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+
+.embed-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  font-size: 0.95rem;
+  color: #cfcfcf;
+  margin: 12px 0 6px;
+}
+
+.embed-meta code {
+  color: #ffd0d0;
+}
+
+.embed-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.embed-copy-btn {
+  background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+  color: #fff;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95rem;
+  box-shadow: 0 6px 18px rgba(74, 144, 226, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.embed-copy-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(74, 144, 226, 0.45);
+}
+
+.embed-note {
+  color: #9aa4b2;
+  font-size: 0.95rem;
+}
+
+.embed-code {
+  position: relative;
+  background: #0b1220;
+  color: #e2e8f0;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.embed-code pre {
+  margin: 0;
+  padding: 18px;
+  overflow: auto;
+  line-height: 1.6;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.95rem;
+}

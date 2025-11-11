@@ -20,6 +20,7 @@ export default function Home() {
                 <a href="#pricing">Pricing</a>
                 <a href="#products">Products</a>
                 <a href="#dashboard">Dashboard</a>
+                <a href="#embed">Embed</a>
                 <button class="cta-button">Login</button>
             </nav>
         
@@ -37,6 +38,7 @@ export default function Home() {
             <a href="#pricing">Pricing</a>
             <a href="#products">Products</a>
             <a href="#dashboard">Dashboard</a>
+            <a href="#embed">Embed</a>
             <button class="cta-button">Login</button>
         </nav>
 
@@ -112,6 +114,41 @@ export default function Home() {
                 <div class="step">
                     <div class="circle">3</div>
                     <p>Start Translating</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Embed Snippet Section -->
+        <section class="embed-section" id="embed">
+            <div class="embed-container">
+                <div class="embed-header">
+                    <div class="icon">🔌</div>
+                    <h2 class="embed-title">Add to Your Website</h2>
+                </div>
+                <p class="embed-sub">Paste this snippet before the closing <code>&lt;/body&gt;</code> tag to enable instant translation.</p>
+                <div class="embed-card">
+                    <div class="embed-code" id="embed-snippet-1">
+<pre><code>&lt;script
+  src="/cdn/webnew.js"
+  data-base-url="https://your-deployment-domain.com"
+  data-default-lang=""
+  async
+&gt;&lt;/script&gt;</code></pre>
+                    </div>
+                    <div class="embed-actions">
+                        <button class="embed-copy-btn" onclick="copyEmbedSnippet('embed-snippet-1')">📋 Copy snippet</button>
+                        <span class="embed-note">Set <code>data-base-url</code> to your app origin hosting <code>/api/translate</code> (e.g., <code>https://app.example.com</code>).</span>
+                    </div>
+                    <div class="embed-meta">
+                        <div><strong>data-default-lang</strong> (optional): <code>french</code>, <code>spanish</code>, <code>german</code>, <code>italian</code>, <code>portuguese</code>, <code>dutch</code>, <code>russian</code>, <code>chinese</code>, <code>japanese</code>, <code>korean</code>. Leave empty to auto-detect.</div>
+                    </div>
+                    <div class="embed-code" style="margin-top:12px;">
+<pre><code>&lt;!-- Optional: switch language programmatically --&gt;
+&lt;script&gt;
+  // Use 'english' to restore original content
+  WebNewTranslate.setLanguage('french');
+&lt;/script&gt;</code></pre>
+                    </div>
                 </div>
             </div>
         </section>
