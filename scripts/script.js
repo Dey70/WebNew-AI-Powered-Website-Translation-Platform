@@ -1896,3 +1896,24 @@ document.addEventListener("DOMContentLoaded", () => {
   console.log("✅ Enhanced accessibility and user feedback");
   console.log("✅ Demo-ready presentation features");
 });
+
+// ===== Global: Copy embed snippet =====
+function copyEmbedSnippet(containerId) {
+  try {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const code = container.querySelector("code");
+    if (!code) return;
+    const text = code.textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      // Try to show notification if available
+      if (typeof showNotification === "function") {
+        showNotification("Embed snippet copied!", "success");
+      }
+    }).catch(() => {
+      alert("Copy failed. Please copy manually.");
+    });
+  } catch (e) {
+    alert("Copy failed. Please copy manually.");
+  }
+}
