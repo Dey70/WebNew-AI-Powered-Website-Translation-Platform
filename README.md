@@ -341,4 +341,4 @@ The live demo is hosted on GitHub Pages and demonstrates all core features inclu
 - `GET /api/history` - Get paginated translation history
 - `POST /api/history` - Save translation to database
 - `DELETE /api/history/:id` - Delete specific translation
-- `POST /api/history/clear` or `/api/clearHistory` - Clear all history
+- `POST /api/history/clear` or `/api/clearHistory` - Clear all history.
