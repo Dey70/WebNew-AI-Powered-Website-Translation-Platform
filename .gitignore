@@ -4,3 +4,6 @@ node_modules
 .env.local
 .env*.local
 .env.test
+test-results
+playwright-report
+playwright/.cache
