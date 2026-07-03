@@ -17,12 +17,14 @@
   const STATE = {
     initialized: false,
     baseUrl: '',
+    apiKey: null,
     targetLanguage: null,
     cacheKey: 'webnew_cache_v1',
     cache: {},
     nodesMeta: new WeakMap(), // node -> { originalText, appliedText }
     observer: null,
     translating: false,
+    backoffUntil: 0,
   }
 
   function getCurrentScript() {
@@ -37,11 +39,12 @@
     const script = getCurrentScript()
     const attr = (name, fallback = null) => (script && script.getAttribute(name)) || fallback
     const baseUrl = attr('data-base-url') || window.__WEBNEW_BASE_URL__ || window.location.origin
+    const apiKey = attr('data-api-key') || window.__WEBNEW_API_KEY__ || null
     let targetLanguage = attr('data-default-lang') || window.__WEBNEW_DEFAULT_LANG__ || null
     if (targetLanguage) {
       targetLanguage = String(targetLanguage).toLowerCase()
     }
-    return { baseUrl, targetLanguage }
+    return { baseUrl, apiKey, targetLanguage }
   }
 
   function loadCache() {
@@ -107,15 +110,47 @@
   async function translateText(text, targetLanguage) {
     const key = cacheKeyFor(text, targetLanguage)
     if (STATE.cache[key]) return STATE.cache[key]
+
+    if (Date.now() < STATE.backoffUntil) return null
+
+    if (!STATE.apiKey) {
+      console.warn('[WebNew] data-api-key is required on the embed <script> tag; skipping translation.')
+      return null
+    }
+
     const endpoint = STATE.baseUrl.replace(/\/$/, '') + '/api/translate'
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, targetLanguage })
-    }).catch(() => null)
-    if (!res || !res.ok) return null
+      body: JSON.stringify({
+        text,
+        targetLanguage,
+        api_key: STATE.apiKey,
+        hostname: window.location.hostname,
+      })
+    }).catch((err) => {
+      console.error('[WebNew] Translation request failed:', err)
+      return null
+    })
+
+    if (!res) return null
+
+    if (res.status === 429) {
+      const retryAfter = parseInt(res.headers.get('Retry-After'), 10)
+      const backoffMs = (Number.isFinite(retryAfter) ? retryAfter : 30) * 1000
+      STATE.backoffUntil = Date.now() + backoffMs
+      console.warn(`[WebNew] Rate limited; backing off for ${backoffMs}ms.`)
+      return null
+    }
+
     const data = await res.json().catch(() => null)
-    const translated = data && data.data && data.data.translatedText
+
+    if (!res.ok || !data || data.success === false) {
+      console.warn('[WebNew] Translation failed:', (data && (data.error || data.message)) || res.status)
+      return null
+    }
+
+    const translated = data.data && data.data.translatedText
     if (translated) {
       STATE.cache[key] = translated
       saveCacheSoon()
@@ -333,6 +368,10 @@
     STATE.initialized = true
     const opts = readOptions()
     STATE.baseUrl = opts.baseUrl
+    STATE.apiKey = opts.apiKey
+    if (!STATE.apiKey) {
+      console.warn('[WebNew] No data-api-key found on the embed <script> tag. Translation will be disabled until one is provided.')
+    }
     loadCache()
     createSwitcher()
     ensureObserver()

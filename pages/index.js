@@ -131,13 +131,14 @@ export default function Home() {
 <pre><code>&lt;script
   src="/cdn/webnew.js"
   data-base-url="https://your-deployment-domain.com"
+  data-api-key="YOUR_API_KEY"
   data-default-lang=""
   async
 &gt;&lt;/script&gt;</code></pre>
                     </div>
                     <div class="embed-actions">
                         <button class="embed-copy-btn" onclick="copyEmbedSnippet('embed-snippet-1')">📋 Copy snippet</button>
-                        <span class="embed-note">Set <code>data-base-url</code> to your app origin hosting <code>/api/translate</code> (e.g., <code>https://app.example.com</code>).</span>
+                        <span class="embed-note">Set <code>data-base-url</code> to your app origin hosting <code>/api/translate</code> (e.g., <code>https://app.example.com</code>), and <code>data-api-key</code> to the key issued for your site.</span>
                     </div>
                     <div class="embed-meta">
                         <div><strong>data-default-lang</strong> (optional): <code>french</code>, <code>spanish</code>, <code>german</code>, <code>italian</code>, <code>portuguese</code>, <code>dutch</code>, <code>russian</code>, <code>chinese</code>, <code>japanese</code>, <code>korean</code>. Leave empty to auto-detect.</div>
