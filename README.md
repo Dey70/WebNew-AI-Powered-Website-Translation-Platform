@@ -2,7 +2,7 @@
 
 An embeddable, multi-tenant website translation widget: drop one `<script>` tag on
 any site and let visitors translate it into 10+ languages. Built with Next.js
-(Pages Router) + Supabase (Postgres) + LibreTranslate.
+(Pages Router) + Supabase (Postgres) + MyMemory.
 
 Each embed is tied to a **site** (a registered domain) and an **API key** issued
 for that site — there is no shared, unauthenticated translation endpoint.
@@ -38,8 +38,10 @@ for that site — there is no shared, unauthenticated translation endpoint.
   `translation_history`. RLS is enabled on all three tables with **zero
   policies** (default-deny); the actual tenant boundary is the service-role
   client + `site_id` filtering in `lib/history.js` / `lib/auth/apiKeys.js`.
-- **LibreTranslate** — the translation provider, called via `lib/translation/provider.js`
-  (a seam intended for additional providers later, e.g. DeepL/OpenAI).
+- **MyMemory** — the translation provider, called via `lib/translation/provider.js`
+  (a seam intended for additional providers later, e.g. DeepL/OpenAI). Free, no
+  API key required; LibreTranslate's public instance stopped serving
+  unauthenticated requests, which is why this isn't LibreTranslate-backed.
 - **Upstash Redis** — per-site rate limiting (optional in local dev; skipped
   entirely if not configured).
 - **Vitest** (unit) + **Playwright** (e2e) for testing.
@@ -60,7 +62,7 @@ for that site — there is no shared, unauthenticated translation endpoint.
 │       └── delete/[id].js
 ├── lib/
 │   ├── auth/apiKeys.js       # Key generation/hashing/validation, origin resolution
-│   ├── translation/          # provider.js (LibreTranslate call), languages.js (internal<->ISO)
+│   ├── translation/          # provider.js (MyMemory call), languages.js (internal<->ISO)
 │   ├── history.js            # site_id-scoped translation_history CRUD
 │   ├── rateLimit.js          # Upstash sliding-window limiter
 │   └── supabase/
@@ -193,8 +195,9 @@ files only and cannot run the `/api/*` routes the widget depends on.
   site's `allowed_origins` — check what was passed to `create-site.js`.
 - **429 `rate_limited`**: the site exceeded its per-10-second request budget;
   the widget backs off automatically using `Retry-After`.
-- **502 provider errors**: LibreTranslate is unreachable or returned an error —
-  check `LIBRETRANSLATE_URL` and the provider's own status.
+- **502 provider errors**: MyMemory is unreachable, rate-limited, or its daily
+  quota was hit — check `MYMEMORY_EMAIL` is set (raises the anonymous limit)
+  and MyMemory's own status.
 
 ## 📄 License
 
