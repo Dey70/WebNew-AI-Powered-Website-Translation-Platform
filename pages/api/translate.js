@@ -1,7 +1,8 @@
-import { resolveSiteFromApiKey } from "@/lib/auth/apiKeys";
+import { resolveSiteFromRequest, AUTH_ERROR_MESSAGES } from "@/lib/auth/apiKeys";
 import { translateText } from "@/lib/translation/provider";
 import { normalizeLang, isSupportedTarget, validInternalLanguages } from "@/lib/translation/languages";
 import { saveTranslation } from "@/lib/history";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 const REASON_STATUS = {
   missing_fields: 400,
@@ -12,6 +13,7 @@ const REASON_STATUS = {
   invalid_api_key: 401,
   site_inactive: 403,
   origin_not_allowed: 403,
+  rate_limited: 429,
   provider_timeout: 502,
   provider_error: 502,
   empty_translation: 502,
@@ -59,31 +61,23 @@ export default async function handler(req, res) {
     return fail(res, "invalid_language", `Target language must be one of: ${validInternalLanguages.join(", ")}`);
   }
 
-  const originHeader = req.headers.origin || req.headers.referer || "";
-  let originHostname = "";
-  try {
-    originHostname = originHeader ? new URL(originHeader).hostname : "";
-  } catch {
-    originHostname = "";
-  }
-  // Origin/Referer headers are the primary signal (can't be forged by the page's own
-  // client-side JS); the widget-supplied hostname is spoofable corroboration only.
-  const effectiveHostname = originHostname || hostname;
-
-  const auth = await resolveSiteFromApiKey(api_key, effectiveHostname);
+  const auth = await resolveSiteFromRequest(req, api_key, hostname);
   if (!auth.ok) {
-    const messages = {
-      missing_api_key: "An API key is required",
-      invalid_api_key: "The provided API key is invalid",
-      site_inactive: "This site is no longer active",
-      origin_not_allowed: "This API key is not authorized for the requesting origin",
-    };
-    return fail(res, auth.reason, messages[auth.reason] || "Authentication failed");
+    return fail(res, auth.reason, AUTH_ERROR_MESSAGES[auth.reason] || "Authentication failed");
   }
 
-  if (originHostname) {
-    res.setHeader("Access-Control-Allow-Origin", originHeader);
+  if (auth.originHeader) {
+    res.setHeader("Access-Control-Allow-Origin", auth.originHeader);
     res.setHeader("Vary", "Origin");
+  }
+
+  const rateLimit = await checkRateLimit(auth.siteId);
+  if (!rateLimit.allowed) {
+    if (rateLimit.reset) {
+      const retryAfterSeconds = Math.max(1, Math.ceil((rateLimit.reset - Date.now()) / 1000));
+      res.setHeader("Retry-After", String(retryAfterSeconds));
+    }
+    return fail(res, "rate_limited", "Too many requests. Please slow down.");
   }
 
   const startedAt = Date.now();

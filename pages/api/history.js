@@ -1,77 +1,79 @@
-export default async function handler(req, res) {
-  // Set CORS headers for cross-origin requests
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+import { resolveSiteFromRequest, AUTH_ERROR_MESSAGES } from "@/lib/auth/apiKeys";
+import { saveTranslation, listTranslations, clearTranslations } from "@/lib/history";
 
-  // Handle preflight OPTIONS request
+const REASON_STATUS = {
+  missing_fields: 400,
+  missing_api_key: 401,
+  invalid_api_key: 401,
+  site_inactive: 403,
+  origin_not_allowed: 403,
+};
+
+function fail(res, reason, message) {
+  const status = REASON_STATUS[reason] || 500;
+  return res.status(status).json({ success: false, error: reason, message });
+}
+
+export default async function handler(req, res) {
   if (req.method === "OPTIONS") {
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
     res.status(200).end();
     return;
   }
 
-  try {
-    // For demo purposes, return mock data since Supabase is not configured
-    console.log("[History] Returning mock data - Supabase not configured");
-    
-    switch (req.method) {
-      case "GET":
-        return res.status(200).json({
-          success: true,
-          data: [],
-          count: 0,
-          total: 0,
-          page: 1,
-          limit: 10,
-          totalPages: 0,
-          message: "Demo mode - no database configured"
-        });
-        
-      case "POST":
-        const { original_text, translated_text, target_language } = req.body;
-        
-        if (!original_text || !translated_text || !target_language) {
-          return res.status(400).json({
-            success: false,
-            error: "Missing required fields",
-            message: "original_text, translated_text, and target_language are required",
-          });
-        }
+  const isBodyMethod = req.method === "POST";
+  const apiKey = isBodyMethod ? req.body?.api_key : req.query?.api_key;
+  const hostname = isBodyMethod ? req.body?.hostname : req.query?.hostname;
 
-        return res.status(200).json({
-          success: true,
-          data: { 
-            id: 'demo-' + Date.now(),
-            original_text,
-            translated_text,
-            target_language,
-            created_at: new Date().toISOString()
-          },
-          message: "Demo mode - translation not saved to database"
-        });
-        
-      case "DELETE":
-        return res.status(200).json({
-          success: true,
-          message: "Demo mode - no database operations performed"
-        });
-        
-      default:
-        return res.status(405).json({
-          success: false,
-          error: "Method not allowed",
-          message: `Method ${req.method} is not supported`,
-        });
+  const auth = await resolveSiteFromRequest(req, apiKey, hostname);
+  if (!auth.ok) {
+    return fail(res, auth.reason, AUTH_ERROR_MESSAGES[auth.reason] || "Authentication failed");
+  }
+
+  if (auth.originHeader) {
+    res.setHeader("Access-Control-Allow-Origin", auth.originHeader);
+    res.setHeader("Vary", "Origin");
+  }
+
+  switch (req.method) {
+    case "GET": {
+      const { page, limit } = req.query;
+      const result = await listTranslations({ siteId: auth.siteId, page, limit });
+      return res.status(200).json({ success: true, ...result });
     }
-  } catch (error) {
-    console.error("History API Error:", error);
 
-    res.status(500).json({
-      success: false,
-      error: "Internal server error",
-      message: "An error occurred while processing your request",
-      timestamp: new Date().toISOString(),
-    });
+    case "POST": {
+      const { original_text, translated_text, target_language } = req.body || {};
+      if (!original_text || !translated_text || !target_language) {
+        return fail(res, "missing_fields", "original_text, translated_text, and target_language are required");
+      }
+      const result = await saveTranslation({
+        siteId: auth.siteId,
+        originalText: original_text,
+        translatedText: translated_text,
+        targetLanguage: target_language,
+      });
+      return res.status(201).json({
+        success: true,
+        data: { id: result.id, original_text, translated_text, target_language },
+        message: "Translation saved to history",
+      });
+    }
+
+    case "DELETE": {
+      const result = await clearTranslations({ siteId: auth.siteId });
+      if (!result.ok) {
+        return res.status(500).json({ success: false, error: "internal_error", message: result.error });
+      }
+      return res.status(200).json({ success: true, message: "All translation history cleared" });
+    }
+
+    default:
+      return res.status(405).json({
+        success: false,
+        error: "method_not_allowed",
+        message: `Method ${req.method} is not supported`,
+      });
   }
 }
-
