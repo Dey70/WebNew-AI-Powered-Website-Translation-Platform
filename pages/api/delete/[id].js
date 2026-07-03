@@ -25,17 +25,16 @@ export default async function handler(req, res) {
       });
     }
 
-    // Check if Supabase is configured
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://your-project.supabase.co') {
+    const { getServiceClient } = await import("@/lib/supabase/admin");
+    const supabase = getServiceClient();
+
+    if (!supabase) {
       console.log("[Delete] Supabase not configured, returning success response");
-      return res.status(200).json({ 
-        success: true, 
-        message: "Supabase not configured - no database operations performed" 
+      return res.status(200).json({
+        success: true,
+        message: "Supabase not configured - no database operations performed"
       });
     }
-
-    const { createClient } = await import("../../../lib/superbase/server");
-    const supabase = await createClient();
 
     const { error } = await supabase
       .from("translation_history")

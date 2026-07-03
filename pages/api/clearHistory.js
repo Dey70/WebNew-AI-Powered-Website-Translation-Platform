@@ -16,8 +16,17 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { createClient } = await import("../lib/superbase/server");
-    const supabase = await createClient();
+    const { getServiceClient } = await import("@/lib/supabase/admin");
+    const supabase = getServiceClient();
+
+    if (!supabase) {
+      console.log("[ClearHistory] Supabase not configured, returning success response");
+      return res.status(200).json({
+        success: true,
+        data: null,
+        message: "Supabase not configured - no database operations performed",
+      });
+    }
 
     const { error } = await supabase
       .from("translation_history")
