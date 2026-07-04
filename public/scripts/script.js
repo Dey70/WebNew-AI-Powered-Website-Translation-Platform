@@ -1282,14 +1282,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // Login button functionality
-  const headerLoginButton = document.querySelector("header .cta-button");
-  if (headerLoginButton) {
-    headerLoginButton.addEventListener("click", () => {
-      alert("Login functionality would be implemented here.");
-    });
-  }
-
   // Try for Free button functionality
   const heroCtaButton = document.querySelector(".hero .cta-button");
   if (heroCtaButton) {
