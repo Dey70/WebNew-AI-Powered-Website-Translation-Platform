@@ -21,9 +21,9 @@ export default function Home() {
                 <a href="#products">Products</a>
                 <a href="#dashboard">Dashboard</a>
                 <a href="#embed">Embed</a>
-                <button class="cta-button">Login</button>
+                <a href="/login" class="cta-button">Login</a>
             </nav>
-        
+
             <!-- Hamburger Menu -->
             <div class="hamburger" >
                 <span></span>
@@ -39,7 +39,7 @@ export default function Home() {
             <a href="#products">Products</a>
             <a href="#dashboard">Dashboard</a>
             <a href="#embed">Embed</a>
-            <button class="cta-button">Login</button>
+            <a href="/login" class="cta-button">Login</a>
         </nav>
 
         <!-- Hero Section -->

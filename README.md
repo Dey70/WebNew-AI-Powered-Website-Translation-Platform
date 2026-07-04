@@ -28,6 +28,31 @@ for that site — there is no shared, unauthenticated translation endpoint.
 > productized widget/API path described in this README and exists purely as an
 > interactive demo.
 
+## 🧭 V2.0 — Accounts & Dashboard (Milestone 1 of 5)
+
+V2.0 is turning WebNew into a self-serve SaaS (accounts, dashboard, billing) on
+top of the V1.0 widget/API described above, without changing how the widget or
+`/api/*` routes work. Milestone 1 (**users, auth, sessions**) is implemented:
+
+- **Supabase Auth** for identity — email/password with email verification,
+  Google/GitHub/Microsoft OAuth, forgot/reset password, logout-everywhere.
+  No custom password hashing/JWT code; this reuses the Supabase project V1.0
+  already depends on.
+- A new `app/` (App Router) tree — `login`, `signup`, `forgot-password`,
+  `reset-password`, `auth/callback`, and a session-guarded `dashboard` — living
+  alongside the existing `pages/` (Pages Router) marketing site + API routes.
+  Styled with Tailwind, scoped only to `app/**`.
+- `middleware.js` refreshes the Supabase session cookie, matched only against
+  the new auth/dashboard routes — it never runs for `/api/*`, `/cdn/*`, or the
+  marketing page.
+- New tables: `public.profiles` (auto-populated from `auth.users` via trigger)
+  and `public.projects` (schema only for now — full project management is
+  Milestone 2). `public.sites` gained nullable `owner_id`/`project_id` columns
+  so existing CLI-created sites are unaffected.
+
+Milestones 2-5 (projects/sites dashboard replacing the CLI, API key management
+UI, usage analytics, Stripe billing) are not yet built.
+
 ## 🚀 Tech Stack
 
 - **Next.js 14** (Pages Router) + React 18 — the app is one Next.js monolith;
@@ -60,6 +85,12 @@ for that site — there is no shared, unauthenticated translation endpoint.
 │       ├── history.js        # GET/POST/DELETE, site_id-scoped
 │       ├── clearHistory.js
 │       └── delete/[id].js
+├── app/                       # V2.0 — App Router (accounts/dashboard), Tailwind
+│   ├── layout.js, globals.css
+│   ├── login/, signup/, forgot-password/, reset-password/
+│   ├── auth/callback/route.js # OAuth/email-verification code exchange
+│   └── dashboard/             # Session-guarded (redirects to /login if signed out)
+├── middleware.js               # Supabase session refresh, scoped to app/ routes only
 ├── lib/
 │   ├── auth/apiKeys.js       # Key generation/hashing/validation, origin resolution
 │   ├── translation/          # provider.js (MyMemory call), languages.js (internal<->ISO)
@@ -67,12 +98,13 @@ for that site — there is no shared, unauthenticated translation endpoint.
 │   ├── rateLimit.js          # Upstash sliding-window limiter
 │   └── supabase/
 │       ├── admin.js           # Service-role client, used inside pages/api/* only
-│       ├── client.ts          # Browser anon client (currently unused)
-│       └── server.ts          # Cookie-based client for a future session/App Router phase
+│       ├── client.ts          # Browser Supabase Auth client (app/**, "use client")
+│       └── server.ts          # Cookie-based server client (app/** server components/routes)
 ├── scripts/
 │   ├── 001_create_translation_history.sql
 │   ├── 002_create_sites_and_api_keys.sql
 │   ├── 003_add_site_id_to_translation_history.sql
+│   ├── 004_create_profiles_and_projects.sql   # V2.0 Milestone 1
 │   ├── create-site.js        # Local-only onboarding CLI (issues an API key)
 │   ├── list-sites.js
 │   └── revoke-api-key.js
@@ -105,8 +137,9 @@ for that site — there is no shared, unauthenticated translation endpoint.
 
 3. **Run the migrations** against your Supabase project's SQL Editor, in order:
    `scripts/001_create_translation_history.sql`, then `002_create_sites_and_api_keys.sql`,
-   then `003_add_site_id_to_translation_history.sql`. Migration 003 truncates
-   `translation_history` (it only ever held unscoped demo data).
+   then `003_add_site_id_to_translation_history.sql`, then
+   `004_create_profiles_and_projects.sql` (V2.0 — accounts/projects). Migration
+   003 truncates `translation_history` (it only ever held unscoped demo data).
 
 4. **Issue your first site + API key** (local-only, never an HTTP endpoint):
    ```bash
@@ -114,11 +147,20 @@ for that site — there is no shared, unauthenticated translation endpoint.
    ```
    This prints an API key once — save it — and a ready-to-paste embed snippet.
 
-5. **Run the dev server**
+5. **Configure Supabase Auth** (Project Settings → Authentication):
+   - **URL Configuration**: set Site URL and add Redirect URLs for both
+     `http://localhost:3000/auth/callback` and your deployed domain's
+     `/auth/callback`.
+   - **Providers**: email/password is on by default. To enable Google/GitHub/
+     Microsoft login, register an OAuth app with each provider and paste its
+     client ID/secret into Authentication → Providers — the login page's OAuth
+     buttons work as soon as a provider is enabled, no code changes needed.
+
+6. **Run the dev server**
    ```bash
    npm run dev
    ```
-   Open `http://localhost:3000`.
+   Open `http://localhost:3000`, or `http://localhost:3000/login` to sign up/in.
 
 Other onboarding scripts: `npm run list-sites` (read-only), `npm run revoke-api-key -- --prefix wn_live_xxxx`.
 
@@ -182,7 +224,9 @@ Switch language programmatically with `WebNewTranslate.setLanguage('french')`
 Deploy to **Vercel** (auto-detects Next.js). Set the environment variables from
 `.env.example` in the Vercel project settings, run the SQL migrations against
 your Supabase project, and run `scripts/create-site.js` once locally to issue
-your first API key.
+your first API key. For V2.0, also add the deployed domain's `/auth/callback`
+URL to Supabase's Auth redirect URL allowlist — no new environment variables
+are required, the dashboard reuses `NEXT_PUBLIC_SUPABASE_URL`/`_ANON_KEY`.
 
 This project is no longer deployed to GitHub Pages — GitHub Pages serves static
 files only and cannot run the `/api/*` routes the widget depends on.
