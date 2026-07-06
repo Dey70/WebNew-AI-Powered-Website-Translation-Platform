@@ -127,7 +127,7 @@ describe("pages/api/translate", () => {
     expect(res._getJSONData().error).toBe("empty_translation");
   });
 
-  it("succeeds with a valid key, origin, and provider response", async () => {
+  it("succeeds with a valid key, origin, and provider response, and logs history without waiting for it", async () => {
     resolveSiteFromRequest.mockResolvedValue({ ok: true, siteId: "site-1" });
     translateText.mockResolvedValue({ ok: true, translatedText: "Bonjour" });
     const { req, res } = makeReqRes({ text: "hello", targetLanguage: "french", api_key: "wn_live_x" });
@@ -136,19 +136,18 @@ describe("pages/api/translate", () => {
     const body = res._getJSONData();
     expect(body.success).toBe(true);
     expect(body.data.translatedText).toBe("Bonjour");
-    expect(body.data.saved).toBe(true);
+    expect(body.data.saved).toBeUndefined(); // fire-and-forget: not part of the synchronous response
+    expect(saveTranslation).toHaveBeenCalledWith(expect.objectContaining({ siteId: "site-1" }));
   });
 
-  it("still returns success:true when the history save fails (DB failure is not a translation failure)", async () => {
+  it("still responds success:true (without waiting) when the history save rejects (DB failure is not a translation failure)", async () => {
     resolveSiteFromRequest.mockResolvedValue({ ok: true, siteId: "site-1" });
     translateText.mockResolvedValue({ ok: true, translatedText: "Bonjour" });
-    saveTranslation.mockResolvedValue({ saved: false, id: null });
+    saveTranslation.mockRejectedValue(new Error("db unreachable"));
     const { req, res } = makeReqRes({ text: "hello", targetLanguage: "french", api_key: "wn_live_x" });
     await handler(req, res);
     expect(res.statusCode).toBe(200);
-    const body = res._getJSONData();
-    expect(body.success).toBe(true);
-    expect(body.data.saved).toBe(false);
+    expect(res._getJSONData().success).toBe(true);
   });
 
   describe("OPTIONS preflight", () => {

@@ -104,13 +104,19 @@ export default async function handler(req, res) {
   const characterCount = text.length;
   const wordCount = text.trim().split(/\s+/).length;
 
-  const saveResult = await saveTranslation({
+  // Fire-and-forget: history logging is bookkeeping, not part of what the
+  // caller is waiting on, and shouldn't hold the translated text response
+  // hostage to a Supabase round trip. Same non-blocking pattern already used
+  // for api_keys.last_used_at in lib/auth/apiKeys.js.
+  saveTranslation({
     siteId: auth.siteId,
     originalText: text,
     translatedText: providerResult.translatedText,
     targetLanguage: targetInternalKey,
     characterCount,
     wordCount,
+  }).catch((err) => {
+    console.error("[translate] saveTranslation failed:", err && err.message);
   });
 
   res.status(200).json({
@@ -122,8 +128,6 @@ export default async function handler(req, res) {
       processingTime,
       characterCount,
       wordCount,
-      saved: saveResult.saved,
-      id: saveResult.id,
     },
     message: "Translation completed successfully",
   });
