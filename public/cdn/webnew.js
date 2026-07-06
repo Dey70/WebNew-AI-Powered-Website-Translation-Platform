@@ -255,6 +255,7 @@
   function createSwitcher() {
     const root = document.createElement('div')
     root.setAttribute('data-webnew-switcher', 'true')
+    root.setAttribute('data-webnew-skip', 'true') // never translate the switcher's own UI text
     root.style.position = 'fixed'
     root.style.bottom = '16px'
     root.style.right = '16px'
