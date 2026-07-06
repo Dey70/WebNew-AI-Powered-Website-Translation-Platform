@@ -8,7 +8,10 @@ import { createClient } from "@/lib/supabase/client";
 // Only list providers actually enabled in Supabase Auth -- an unenabled
 // provider sends the browser to Supabase's raw /authorize endpoint, which
 // 400s with a JSON error page instead of failing gracefully in the UI.
-const OAUTH_PROVIDERS = [{ id: "google", label: "Google" }];
+const OAUTH_PROVIDERS = [
+  { id: "google", label: "Google" },
+  { id: "github", label: "GitHub" },
+];
 
 export default function LoginPage() {
   const router = useRouter();
