@@ -22,7 +22,7 @@ for that site — there is no shared, unauthenticated translation endpoint.
 - **Translation history** per site, with pagination via the `/api/history`
   endpoint.
 
-## 🧭 V2.0 — Accounts & Dashboard (Milestone 3 of 5)
+## 🧭 V2.0 — Accounts & Dashboard (Milestone 4 of 5)
 
 V2.0 is turning WebNew into a self-serve SaaS (accounts, dashboard, billing) on
 top of the V1.0 widget/API described above, without changing how the widget or
@@ -85,7 +85,27 @@ top of the V1.0 widget/API described above, without changing how the widget or
   prefix, created/last-used dates, and a per-key revoke action, instead of a
   single current-key display.
 
-Milestones 4-5 (usage analytics, Stripe billing) are not yet built.
+**Milestone 4 (usage/analytics view)**:
+
+- Per-site analytics page (`.../sites/[siteId]/analytics`) built from what
+  `translation_history` actually captures — `site_id`, `target_language`,
+  `created_at`. Only *successful* translations are ever persisted (a failed
+  provider call just returns an error to the caller and is never logged
+  anywhere), so this is honestly scoped to what's real: all-time and
+  last-30-days totals, a requests-per-day chart, a breakdown by target
+  language, and recent activity. Visitors, countries, page views, provider
+  usage, cache-hit rate, and error rate all need instrumentation that doesn't
+  exist yet (the widget never reports that data, and failures aren't logged)
+  — explicitly deferred rather than fabricated.
+- `lib/analytics.js`'s `getSiteAnalytics` mirrors `lib/history.js`'s shape,
+  reuses `listTranslations` for the recent-activity list instead of a
+  duplicate query, and aggregates day/language counts in application code
+  (no new SQL views needed at this data volume).
+- The daily-requests bar chart and language-breakdown bars are plain
+  SVG/CSS — no charting library — using a single validated accent hue
+  (`#2a78d6`) via the `dataviz` skill's method rather than ad hoc colors.
+
+Milestone 5 (Stripe billing + plan gating) is not yet built.
 
 ## 🚀 Tech Stack
 
@@ -127,10 +147,13 @@ Milestones 4-5 (usage analytics, Stripe billing) are not yet built.
 │   │   ├── page.js                                 # Project list
 │   │   └── projects/[projectId]/
 │   │       ├── page.js                             # Project detail + site list
-│   │       └── sites/[siteId]/page.js              # Site detail: origins, key, embed snippet
+│   │       └── sites/[siteId]/
+│   │           ├── page.js                         # Site detail: origins, keys, embed snippet
+│   │           └── analytics/page.js               # Per-site usage analytics (Milestone 4)
 │   └── api/                   # Session-authenticated (owner_id-scoped), NOT the api_key-authenticated
 │       ├── projects/route.js, projects/[id]/route.js       # ones under pages/api/*
-│       └── sites/route.js, sites/[id]/route.js, sites/[id]/keys/route.js, sites/[id]/keys/[keyId]/route.js
+│       └── sites/route.js, sites/[id]/route.js, sites/[id]/keys/route.js,
+│           sites/[id]/keys/[keyId]/route.js, sites/[id]/analytics/route.js
 ├── middleware.js               # Supabase session refresh, scoped to app/ routes only
 ├── lib/
 │   ├── auth/
@@ -138,6 +161,7 @@ Milestones 4-5 (usage analytics, Stripe billing) are not yet built.
 │   │   └── session.js         # getSessionUser() for app/api/** Route Handlers
 │   ├── translation/          # provider.js (MyMemory call), languages.js (internal<->ISO)
 │   ├── history.js            # site_id-scoped translation_history CRUD
+│   ├── analytics.js          # site_id-scoped usage aggregation (success-only)
 │   ├── projects.js           # owner_id-scoped projects CRUD
 │   ├── sites.js               # owner_id-scoped sites CRUD + API key issuance/revocation
 │   ├── rateLimit.js          # Upstash sliding-window limiter

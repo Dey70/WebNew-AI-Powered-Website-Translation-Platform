@@ -147,7 +147,13 @@ export default function SiteDetailPage() {
 
       <div className="mt-2 flex items-center justify-between">
         <h1 className="text-2xl font-semibold">{site.name}</h1>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/dashboard/projects/${projectId}/sites/${siteId}/analytics`}
+            className="text-sm text-slate-500 hover:underline"
+          >
+            View analytics →
+          </Link>
           <button
             onClick={handleToggleActive}
             className="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50"
