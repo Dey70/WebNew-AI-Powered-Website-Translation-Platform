@@ -22,7 +22,7 @@ for that site — there is no shared, unauthenticated translation endpoint.
 - **Translation history** per site, with pagination via the `/api/history`
   endpoint.
 
-## 🧭 V2.0 — Accounts & Dashboard (Milestone 2 of 5)
+## 🧭 V2.0 — Accounts & Dashboard (Milestone 3 of 5)
 
 V2.0 is turning WebNew into a self-serve SaaS (accounts, dashboard, billing) on
 top of the V1.0 widget/API described above, without changing how the widget or
@@ -61,13 +61,31 @@ top of the V1.0 widget/API described above, without changing how the widget or
   `lib/history.js`'s shape); `lib/sites.js` reuses `generateApiKey`/
   `hashApiKey`/`normalizeHostname` from `lib/auth/apiKeys.js` rather than
   duplicating key-generation logic the way the CLI script does.
-- Revoking a site's API key from the dashboard also immediately issues a new
-  one in the same action (`POST /api/sites/[id]/regenerate-key`) — revoke-only
-  would otherwise leave a site's widget silently broken with no way to fix it
-  short of the CLI.
+- Milestone 2 shipped "revoke & regenerate" as one atomic action (a stop-gap
+  so a site was never left un-recoverable from the dashboard) — superseded by
+  Milestone 3 below.
 
-Milestones 3-5 (API key management UI, usage analytics, Stripe billing) are
-not yet built.
+**Milestone 3 (API key management UI)**:
+
+- Multiple named, simultaneously-active API keys per site (e.g. "Production"
+  vs "Staging") — `api_keys` already had no uniqueness constraint on
+  `is_active` per site, so this was a data-layer non-issue; the gaps were a
+  `label` column (migration `006_add_api_key_label.sql`) and application logic
+  that always revoked-then-created exactly one.
+- `POST /api/sites/[id]/keys` (create, optional label) and
+  `DELETE /api/sites/[id]/keys/[keyId]` (revoke one specific key) replace the
+  old combined regenerate endpoint — enabling real zero-downtime rotation:
+  create the new key, update the live embed, then revoke the old key on your
+  own schedule, instead of an instant cutover.
+- `lib/sites.js`'s `createApiKey`/`revokeApiKey` cap active keys at 5 per site
+  (light abuse/clutter guard) and scope every mutation by both the relevant
+  key's `id` and its `site_id`, same "scope by every relevant id" pattern used
+  throughout.
+- The site detail page now lists every key (active and revoked) with label,
+  prefix, created/last-used dates, and a per-key revoke action, instead of a
+  single current-key display.
+
+Milestones 4-5 (usage analytics, Stripe billing) are not yet built.
 
 ## 🚀 Tech Stack
 
@@ -112,7 +130,7 @@ not yet built.
 │   │       └── sites/[siteId]/page.js              # Site detail: origins, key, embed snippet
 │   └── api/                   # Session-authenticated (owner_id-scoped), NOT the api_key-authenticated
 │       ├── projects/route.js, projects/[id]/route.js       # ones under pages/api/*
-│       └── sites/route.js, sites/[id]/route.js, sites/[id]/regenerate-key/route.js
+│       └── sites/route.js, sites/[id]/route.js, sites/[id]/keys/route.js, sites/[id]/keys/[keyId]/route.js
 ├── middleware.js               # Supabase session refresh, scoped to app/ routes only
 ├── lib/
 │   ├── auth/
@@ -133,6 +151,7 @@ not yet built.
 │   ├── 003_add_site_id_to_translation_history.sql
 │   ├── 004_create_profiles_and_projects.sql   # V2.0 Milestone 1
 │   ├── 005_add_projects_slug_unique.sql       # V2.0 Milestone 2
+│   ├── 006_add_api_key_label.sql              # V2.0 Milestone 3
 │   ├── create-site.js        # Local-only onboarding CLI (issues an API key)
 │   ├── list-sites.js
 │   └── revoke-api-key.js
@@ -166,9 +185,10 @@ not yet built.
 3. **Run the migrations** against your Supabase project's SQL Editor, in order:
    `scripts/001_create_translation_history.sql`, then `002_create_sites_and_api_keys.sql`,
    then `003_add_site_id_to_translation_history.sql`, then
-   `004_create_profiles_and_projects.sql`, then `005_add_projects_slug_unique.sql`
-   (V2.0 — accounts/projects/sites dashboard). Migration 003 truncates
-   `translation_history` (it only ever held unscoped demo data).
+   `004_create_profiles_and_projects.sql`, then `005_add_projects_slug_unique.sql`,
+   then `006_add_api_key_label.sql` (V2.0 — accounts/projects/sites dashboard).
+   Migration 003 truncates `translation_history` (it only ever held unscoped
+   demo data).
 
 4. **Issue your first site + API key** (local-only, never an HTTP endpoint):
    ```bash

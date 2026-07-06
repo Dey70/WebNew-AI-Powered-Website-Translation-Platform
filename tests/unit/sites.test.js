@@ -15,7 +15,8 @@ import {
   getSite,
   updateSite,
   deleteSite,
-  revokeAndRegenerateKey,
+  createApiKey,
+  revokeApiKey,
 } from "@/lib/sites";
 
 // Minimal chainable fake, keyed per table, matching lib/sites.js's exact call shapes:
@@ -199,34 +200,94 @@ describe("lib/sites.js", () => {
     expect(result).toEqual({ ok: true });
   });
 
-  describe("revokeAndRegenerateKey", () => {
+  describe("createApiKey", () => {
     it("reports not_found for a site that does not belong to the owner", async () => {
       const client = makeClient({ sites: { select: () => ({ data: null, error: null }) } });
       getServiceClient.mockReturnValue(client);
 
-      const result = await revokeAndRegenerateKey({ ownerId: "user-1", siteId: "site-1" });
+      const result = await createApiKey({ ownerId: "user-1", siteId: "site-1", label: "Prod" });
       expect(result).toEqual({ ok: false, error: "not_found" });
     });
 
-    it("revokes the active key and issues a new one", async () => {
+    it("rejects creating a new key once the active-key cap is reached", async () => {
+      const client = makeClient({
+        sites: { select: () => ({ data: { id: "site-1" }, error: null }) },
+        api_keys: { select: () => ({ count: 5, error: null }) },
+      });
+      getServiceClient.mockReturnValue(client);
+
+      const result = await createApiKey({ ownerId: "user-1", siteId: "site-1" });
+      expect(result).toEqual({ ok: false, error: "too_many_active_keys" });
+      expect(client.__calls.some((c) => c.table === "api_keys" && c.op === "insert")).toBe(false);
+    });
+
+    it("creates a new key without touching (or being blocked by) existing ones", async () => {
       const client = makeClient({
         sites: { select: () => ({ data: { id: "site-1" }, error: null }) },
         api_keys: {
-          update: () => ({ error: null }),
+          select: () => ({ count: 1, error: null }),
           insert: () => ({ data: null, error: null }),
         },
       });
       getServiceClient.mockReturnValue(client);
 
-      const result = await revokeAndRegenerateKey({ ownerId: "user-1", siteId: "site-1" });
+      const result = await createApiKey({ ownerId: "user-1", siteId: "site-1", label: "Production" });
 
       expect(result.ok).toBe(true);
       expect(result.apiKey.startsWith("wn_live_")).toBe(true);
-
-      const revokeCall = client.__calls.find((c) => c.table === "api_keys" && c.op === "update");
-      expect(revokeCall.patch.is_active).toBe(false);
       const insertCall = client.__calls.find((c) => c.table === "api_keys" && c.op === "insert");
       expect(insertCall.payload.site_id).toBe("site-1");
+      expect(insertCall.payload.label).toBe("Production");
+      expect(client.__calls.some((c) => c.table === "api_keys" && c.op === "update")).toBe(false);
+    });
+  });
+
+  describe("revokeApiKey", () => {
+    it("reports not_found for a site that does not belong to the owner", async () => {
+      const client = makeClient({ sites: { select: () => ({ data: null, error: null }) } });
+      getServiceClient.mockReturnValue(client);
+
+      const result = await revokeApiKey({ ownerId: "user-1", siteId: "site-1", keyId: "key-1" });
+      expect(result).toEqual({ ok: false, error: "not_found" });
+    });
+
+    it("reports not_found when the key does not belong to that site", async () => {
+      const client = makeClient({
+        sites: { select: () => ({ data: { id: "site-1" }, error: null }) },
+        api_keys: { update: () => ({ data: null, error: null }) },
+      });
+      getServiceClient.mockReturnValue(client);
+
+      const result = await revokeApiKey({ ownerId: "user-1", siteId: "site-1", keyId: "someone-elses-key" });
+      expect(result).toEqual({ ok: false, error: "not_found" });
+    });
+
+    it("scopes the revoke by both key id and site_id (regression guard against cross-site key revocation)", async () => {
+      const capturedEq = [];
+      getServiceClient.mockReturnValue({
+        from: (table) => {
+          if (table === "sites") {
+            return {
+              select: () => ({
+                eq: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { id: "site-1" }, error: null }) }) }),
+              }),
+            };
+          }
+          const node = {
+            eq: (col, val) => {
+              capturedEq.push([col, val]);
+              return node;
+            },
+            select: () => node,
+            maybeSingle: async () => ({ data: { id: "key-1" }, error: null }),
+          };
+          return { update: () => node };
+        },
+      });
+
+      const result = await revokeApiKey({ ownerId: "user-1", siteId: "site-1", keyId: "key-1" });
+      expect(result).toEqual({ ok: true });
+      expect(capturedEq).toEqual([["id", "key-1"], ["site_id", "site-1"]]);
     });
   });
 

@@ -15,7 +15,9 @@ export default function SiteDetailPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [newKey, setNewKey] = useState(null);
-  const [regenerating, setRegenerating] = useState(false);
+  const [keyLabel, setKeyLabel] = useState("");
+  const [creatingKey, setCreatingKey] = useState(false);
+  const [revokingKeyId, setRevokingKeyId] = useState(null);
 
   async function loadSite() {
     setLoading(true);
@@ -69,25 +71,46 @@ export default function SiteDetailPage() {
     if (json.success) setSite((prev) => ({ ...prev, is_active: json.data.is_active }));
   }
 
-  async function handleRegenerateKey() {
-    if (
-      !confirm(
-        "This immediately revokes the current API key. Any embedded widget using it will stop working until you update it with the new key. Continue?"
-      )
-    )
-      return;
-
-    setRegenerating(true);
+  async function handleCreateKey(e) {
+    e.preventDefault();
+    setError(null);
+    setCreatingKey(true);
     setNewKey(null);
-    const res = await fetch(`/api/sites/${siteId}/regenerate-key`, { method: "POST" });
+
+    const res = await fetch(`/api/sites/${siteId}/keys`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label: keyLabel }),
+    });
     const json = await res.json();
-    setRegenerating(false);
+    setCreatingKey(false);
 
     if (!json.success) {
-      setError(json.error || "Failed to regenerate key");
+      setError(json.error || "Failed to create key");
       return;
     }
+    setKeyLabel("");
     setNewKey(json.apiKey);
+    loadSite();
+  }
+
+  async function handleRevokeKey(keyId) {
+    const activeCount = (site.apiKeys || []).filter((k) => k.is_active).length;
+    const warning =
+      activeCount <= 1
+        ? "This is the site's only active key. Revoking it will stop translation until a new key is issued and deployed. Continue?"
+        : "Revoke this API key? Any embedded widget still using it will stop working immediately.";
+    if (!confirm(warning)) return;
+
+    setRevokingKeyId(keyId);
+    const res = await fetch(`/api/sites/${siteId}/keys/${keyId}`, { method: "DELETE" });
+    const json = await res.json();
+    setRevokingKeyId(null);
+
+    if (!json.success) {
+      setError(json.error || "Failed to revoke key");
+      return;
+    }
     loadSite();
   }
 
@@ -173,20 +196,75 @@ export default function SiteDetailPage() {
         </p>
       )}
 
-      <h2 className="mt-8 text-lg font-medium">API key</h2>
-      <p className="mt-1 text-sm text-slate-600">
-        Current key prefix:{" "}
-        <code className="rounded bg-slate-100 px-1.5 py-0.5">
-          {site.apiKeys?.find((k) => k.is_active)?.key_prefix || "none active"}
-        </code>
-      </p>
-      <button
-        onClick={handleRegenerateKey}
-        disabled={regenerating}
-        className="mt-2 rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50 disabled:opacity-50"
-      >
-        {regenerating ? "Regenerating..." : "Revoke & regenerate key"}
-      </button>
+      <h2 className="mt-8 text-lg font-medium">API keys</h2>
+
+      {(site.apiKeys || []).length === 0 ? (
+        <p className="mt-2 text-sm text-slate-500">No keys yet.</p>
+      ) : (
+        <table className="mt-2 w-full rounded border border-slate-200 bg-white text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+              <th className="px-3 py-2">Label</th>
+              <th className="px-3 py-2">Prefix</th>
+              <th className="px-3 py-2">Status</th>
+              <th className="px-3 py-2">Created</th>
+              <th className="px-3 py-2">Last used</th>
+              <th className="px-3 py-2" />
+            </tr>
+          </thead>
+          <tbody>
+            {site.apiKeys.map((key) => (
+              <tr key={key.id} className="border-b border-slate-100 last:border-0">
+                <td className="px-3 py-2">{key.label || "Unnamed key"}</td>
+                <td className="px-3 py-2">
+                  <code className="rounded bg-slate-100 px-1.5 py-0.5">{key.key_prefix}</code>
+                </td>
+                <td className="px-3 py-2">
+                  {key.is_active ? (
+                    <span className="text-green-600">Active</span>
+                  ) : (
+                    <span className="text-slate-400">Revoked</span>
+                  )}
+                </td>
+                <td className="px-3 py-2 text-slate-500">
+                  {new Date(key.created_at).toLocaleDateString()}
+                </td>
+                <td className="px-3 py-2 text-slate-500">
+                  {key.last_used_at ? new Date(key.last_used_at).toLocaleDateString() : "Never"}
+                </td>
+                <td className="px-3 py-2 text-right">
+                  {key.is_active && (
+                    <button
+                      onClick={() => handleRevokeKey(key.id)}
+                      disabled={revokingKeyId === key.id}
+                      className="text-red-600 hover:underline disabled:opacity-50"
+                    >
+                      {revokingKeyId === key.id ? "Revoking..." : "Revoke"}
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <form onSubmit={handleCreateKey} className="mt-4 flex gap-2">
+        <input
+          type="text"
+          placeholder="Label (optional, e.g. Production)"
+          value={keyLabel}
+          onChange={(e) => setKeyLabel(e.target.value)}
+          className="flex-1 rounded border border-slate-300 px-3 py-2 text-sm"
+        />
+        <button
+          type="submit"
+          disabled={creatingKey}
+          className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+        >
+          {creatingKey ? "Creating..." : "Create new key"}
+        </button>
+      </form>
 
       {newKey && (
         <div className="mt-4 rounded border border-amber-300 bg-amber-50 p-4">
