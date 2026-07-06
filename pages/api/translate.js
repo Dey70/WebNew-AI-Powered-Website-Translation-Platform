@@ -26,6 +26,13 @@ function fail(res, reason, message) {
 
 export default async function handler(req, res) {
   if (req.method === "OPTIONS") {
+    // The actual authorization boundary (API key + allowed_origins) is enforced
+    // on the real POST below; echoing Origin here just lets the browser's
+    // preflight succeed so that check ever gets a chance to run.
+    if (req.headers.origin) {
+      res.setHeader("Access-Control-Allow-Origin", req.headers.origin);
+      res.setHeader("Vary", "Origin");
+    }
     res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");
     res.status(200).end();

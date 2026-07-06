@@ -16,6 +16,10 @@ function fail(res, reason, message) {
 
 export default async function handler(req, res) {
   if (req.method === "OPTIONS") {
+    if (req.headers.origin) {
+      res.setHeader("Access-Control-Allow-Origin", req.headers.origin);
+      res.setHeader("Vary", "Origin");
+    }
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");
     res.status(200).end();

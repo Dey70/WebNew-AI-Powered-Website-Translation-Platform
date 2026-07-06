@@ -150,4 +150,31 @@ describe("pages/api/translate", () => {
     expect(body.success).toBe(true);
     expect(body.data.saved).toBe(false);
   });
+
+  describe("OPTIONS preflight", () => {
+    // Regression guard: a cross-origin browser fetch() sends a CORS preflight
+    // (OPTIONS) before the real POST. Without Access-Control-Allow-Origin on
+    // THIS response, the browser blocks the POST before it's ever sent --
+    // the actual origin/API-key check inside the POST handler never even
+    // gets a chance to run. This is what "fetch failed" on a real embedded
+    // widget looks like; curl and same-origin testing never catch it.
+    it("echoes the request's Origin header so the browser's preflight succeeds", async () => {
+      const req = httpMocks.createRequest({
+        method: "OPTIONS",
+        headers: { origin: "https://customer-site.com" },
+      });
+      const res = httpMocks.createResponse();
+      await handler(req, res);
+      expect(res.statusCode).toBe(200);
+      expect(res.getHeader("Access-Control-Allow-Origin")).toBe("https://customer-site.com");
+    });
+
+    it("does not set Access-Control-Allow-Origin when there is no Origin header", async () => {
+      const req = httpMocks.createRequest({ method: "OPTIONS", headers: {} });
+      const res = httpMocks.createResponse();
+      await handler(req, res);
+      expect(res.statusCode).toBe(200);
+      expect(res.getHeader("Access-Control-Allow-Origin")).toBeUndefined();
+    });
+  });
 });
