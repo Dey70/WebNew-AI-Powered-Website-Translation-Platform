@@ -22,11 +22,13 @@ for that site — there is no shared, unauthenticated translation endpoint.
 - **Translation history** per site, with pagination via the `/api/history`
   endpoint.
 
-## 🧭 V2.0 — Accounts & Dashboard (Milestone 1 of 5)
+## 🧭 V2.0 — Accounts & Dashboard (Milestone 2 of 5)
 
 V2.0 is turning WebNew into a self-serve SaaS (accounts, dashboard, billing) on
 top of the V1.0 widget/API described above, without changing how the widget or
-`/api/*` routes work. Milestone 1 (**users, auth, sessions**) is implemented:
+`/api/*` routes work.
+
+**Milestone 1 (users, auth, sessions)**:
 
 - **Supabase Auth** for identity — email/password with email verification,
   forgot/reset password, logout-everywhere. OAuth via `signInWithOAuth`; Google
@@ -41,12 +43,31 @@ top of the V1.0 widget/API described above, without changing how the widget or
   the new auth/dashboard routes — it never runs for `/api/*`, `/cdn/*`, or the
   marketing page.
 - New tables: `public.profiles` (auto-populated from `auth.users` via trigger)
-  and `public.projects` (schema only for now — full project management is
-  Milestone 2). `public.sites` gained nullable `owner_id`/`project_id` columns
-  so existing CLI-created sites are unaffected.
+  and `public.projects`. `public.sites` gained nullable `owner_id`/`project_id`
+  columns so existing CLI-created sites are unaffected.
 
-Milestones 2-5 (projects/sites dashboard replacing the CLI, API key management
-UI, usage analytics, Stripe billing) are not yet built.
+**Milestone 2 (projects + sites dashboard, replacing the CLI)**:
+
+- Dashboard UI to create/archive/delete projects and register/edit/pause/
+  delete sites under them — the same operations `scripts/create-site.js`/
+  `list-sites.js`/`revoke-api-key.js` do, now self-serve. The CLI scripts are
+  unchanged and still work for local/admin use.
+- `sites`/`api_keys` still have zero RLS policies by design (see below), so the
+  dashboard talks to them through new session-authenticated Route Handlers
+  (`app/api/projects/**`, `app/api/sites/**`) that use the service-role client
+  filtered by `owner_id` — the same "service-role + explicit tenant filtering"
+  pattern already used for `site_id`, just at the account level.
+- `lib/projects.js` and `lib/sites.js` are the data-access layer (mirroring
+  `lib/history.js`'s shape); `lib/sites.js` reuses `generateApiKey`/
+  `hashApiKey`/`normalizeHostname` from `lib/auth/apiKeys.js` rather than
+  duplicating key-generation logic the way the CLI script does.
+- Revoking a site's API key from the dashboard also immediately issues a new
+  one in the same action (`POST /api/sites/[id]/regenerate-key`) — revoke-only
+  would otherwise leave a site's widget silently broken with no way to fix it
+  short of the CLI.
+
+Milestones 3-5 (API key management UI, usage analytics, Stripe billing) are
+not yet built.
 
 ## 🚀 Tech Stack
 
@@ -71,7 +92,7 @@ UI, usage analytics, Stripe billing) are not yet built.
 ```
 ├── public/
 │   ├── cdn/webnew.js        # The embeddable widget
-│   ├── scripts/script.js    # Marketing-page demo sandbox (not the productized path)
+│   ├── scripts/script.js    # Marketing-page UI only (menu, embed-snippet copy button)
 │   └── styles/style.css
 ├── pages/
 │   ├── index.js              # Marketing page (SSR'd HTML)
@@ -84,15 +105,26 @@ UI, usage analytics, Stripe billing) are not yet built.
 │   ├── layout.js, globals.css
 │   ├── login/, signup/, forgot-password/, reset-password/
 │   ├── auth/callback/route.js # OAuth/email-verification code exchange
-│   └── dashboard/             # Session-guarded (redirects to /login if signed out)
+│   ├── dashboard/             # Session-guarded (redirects to /login if signed out)
+│   │   ├── page.js                                 # Project list
+│   │   └── projects/[projectId]/
+│   │       ├── page.js                             # Project detail + site list
+│   │       └── sites/[siteId]/page.js              # Site detail: origins, key, embed snippet
+│   └── api/                   # Session-authenticated (owner_id-scoped), NOT the api_key-authenticated
+│       ├── projects/route.js, projects/[id]/route.js       # ones under pages/api/*
+│       └── sites/route.js, sites/[id]/route.js, sites/[id]/regenerate-key/route.js
 ├── middleware.js               # Supabase session refresh, scoped to app/ routes only
 ├── lib/
-│   ├── auth/apiKeys.js       # Key generation/hashing/validation, origin resolution
+│   ├── auth/
+│   │   ├── apiKeys.js         # Key generation/hashing/validation, origin resolution
+│   │   └── session.js         # getSessionUser() for app/api/** Route Handlers
 │   ├── translation/          # provider.js (MyMemory call), languages.js (internal<->ISO)
 │   ├── history.js            # site_id-scoped translation_history CRUD
+│   ├── projects.js           # owner_id-scoped projects CRUD
+│   ├── sites.js               # owner_id-scoped sites CRUD + API key issuance/revocation
 │   ├── rateLimit.js          # Upstash sliding-window limiter
 │   └── supabase/
-│       ├── admin.js           # Service-role client, used inside pages/api/* only
+│       ├── admin.js           # Service-role client, used inside pages/api/* and app/api/* only
 │       ├── client.ts          # Browser Supabase Auth client (app/**, "use client")
 │       └── server.ts          # Cookie-based server client (app/** server components/routes)
 ├── scripts/
@@ -100,6 +132,7 @@ UI, usage analytics, Stripe billing) are not yet built.
 │   ├── 002_create_sites_and_api_keys.sql
 │   ├── 003_add_site_id_to_translation_history.sql
 │   ├── 004_create_profiles_and_projects.sql   # V2.0 Milestone 1
+│   ├── 005_add_projects_slug_unique.sql       # V2.0 Milestone 2
 │   ├── create-site.js        # Local-only onboarding CLI (issues an API key)
 │   ├── list-sites.js
 │   └── revoke-api-key.js
@@ -133,8 +166,9 @@ UI, usage analytics, Stripe billing) are not yet built.
 3. **Run the migrations** against your Supabase project's SQL Editor, in order:
    `scripts/001_create_translation_history.sql`, then `002_create_sites_and_api_keys.sql`,
    then `003_add_site_id_to_translation_history.sql`, then
-   `004_create_profiles_and_projects.sql` (V2.0 — accounts/projects). Migration
-   003 truncates `translation_history` (it only ever held unscoped demo data).
+   `004_create_profiles_and_projects.sql`, then `005_add_projects_slug_unique.sql`
+   (V2.0 — accounts/projects/sites dashboard). Migration 003 truncates
+   `translation_history` (it only ever held unscoped demo data).
 
 4. **Issue your first site + API key** (local-only, never an HTTP endpoint):
    ```bash
