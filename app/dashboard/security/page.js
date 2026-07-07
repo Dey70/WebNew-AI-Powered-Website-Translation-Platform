@@ -10,6 +10,8 @@ export default function SecurityPage() {
   const [code, setCode] = useState("");
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [signingOutOthers, setSigningOutOthers] = useState(false);
+  const [signOutOthersMessage, setSignOutOthersMessage] = useState(null);
 
   async function loadFactors() {
     setLoading(true);
@@ -78,6 +80,24 @@ export default function SecurityPage() {
     await supabase.auth.mfa.unenroll({ factorId: verifiedFactor.id });
     setBusy(false);
     loadFactors();
+  }
+
+  async function handleSignOutOthers() {
+    if (
+      !confirm(
+        "Log out every other session for this account (other browsers/devices)? This one stays signed in."
+      )
+    ) {
+      return;
+    }
+    setSigningOutOthers(true);
+    setSignOutOthersMessage(null);
+    const supabase = createClient();
+    const { error: signOutError } = await supabase.auth.signOut({ scope: "others" });
+    setSigningOutOthers(false);
+    setSignOutOthersMessage(
+      signOutError ? signOutError.message : "Other sessions have been signed out."
+    );
   }
 
   if (loading) return <p className="text-sm text-white/50">Loading...</p>;
@@ -170,6 +190,24 @@ export default function SecurityPage() {
         )}
 
         {error && <p className="mt-3 text-sm text-brand-red-400">{error}</p>}
+      </div>
+
+      <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-6 shadow-[0_10px_30px_rgba(0,0,0,0.3)]">
+        <h2 className="text-lg font-medium text-white">Sessions</h2>
+        <p className="mt-2 text-sm text-white/60">
+          If you think your account was signed in somewhere you don&apos;t recognize, you can sign
+          out of every other session at once. This browser stays signed in.
+        </p>
+        <button
+          onClick={handleSignOutOthers}
+          disabled={signingOutOthers}
+          className="mt-4 rounded border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10 disabled:opacity-50"
+        >
+          {signingOutOthers ? "Signing out..." : "Log out of all other sessions"}
+        </button>
+        {signOutOthersMessage && (
+          <p className="mt-3 text-sm text-white/60">{signOutOthersMessage}</p>
+        )}
       </div>
     </div>
   );

@@ -156,6 +156,37 @@ existing platform feature:
   method (password, Google, GitHub), so there's no path that skips it — not
   just a client-side redirect on the login page (which also checks, for
   smoother UX, but isn't the actual security boundary).
+- Both `/login` and `/mfa-challenge` use a hard navigation
+  (`window.location.href`) rather than `router.push`+`router.refresh()` for
+  their post-auth redirect into `/dashboard` — found via live testing that
+  the client-side push could race the Supabase auth cookie actually
+  committing, so the dashboard layout's server-side check would read stale
+  state and silently bounce back to the same page.
+
+## 🛡️ V4.0 — Milestone 2: Security Pass
+
+"Device sessions list with per-device revoke" (`context.md`'s original
+wording) isn't actually buildable with what Supabase's client SDK exposes to
+a regular user — no per-session device/IP metadata, no revoke-by-arbitrary-
+session-id. What it does support: `signOut({ scope: 'others' })`, which kills
+every other session in one action (`app/dashboard/security/page.js`'s new
+"Log out of all other sessions" button) — same reality-check as V3's SEO
+scoping.
+
+The rest of this milestone is an actual audit of the auth-critical code
+paths, not a formality — found two real, concrete issues:
+
+- **Open redirect in `app/auth/callback/route.js`**: the `next` query param
+  was concatenated unsanitized into a redirect (`${origin}${next}`). A value
+  like `next=@evil.com` produces a URL where `evil.com` becomes the actual
+  host per URL-parsing rules (the `user@host` trick) — a real phishing
+  vector, and dead flexibility besides (no flow of ours ever sets `next`).
+  Fixed with `lib/auth/redirect.js`'s `safeRedirectPath` — only a same-origin
+  relative path (no `//`, no `@`, no backslashes) is allowed through,
+  everything else falls back to `/dashboard`. Covered by
+  `tests/unit/redirect.test.js`.
+- **`middleware.js`'s matcher was missing `/mfa-challenge`** — added during
+  the 2FA milestone but never added to the session-refresh matcher.
 
 ## 🚀 Tech Stack
 
@@ -209,7 +240,8 @@ existing platform feature:
 ├── lib/
 │   ├── auth/
 │   │   ├── apiKeys.js         # Key generation/hashing/validation, origin resolution
-│   │   └── session.js         # getSessionUser() for app/api/** Route Handlers
+│   │   ├── session.js         # getSessionUser() for app/api/** Route Handlers
+│   │   └── redirect.js        # safeRedirectPath() -- open-redirect guard for /auth/callback
 │   ├── translation/
 │   │   ├── provider.js        # Dispatcher -- picks a site's configured provider
 │   │   ├── providers/mymemory.js, providers/deepl.js

@@ -40,6 +40,7 @@ export const config = {
     "/signup",
     "/forgot-password",
     "/reset-password",
+    "/mfa-challenge",
     "/auth/:path*",
   ],
 };
