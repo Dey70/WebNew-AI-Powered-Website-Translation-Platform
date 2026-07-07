@@ -22,7 +22,7 @@ for that site — there is no shared, unauthenticated translation endpoint.
 - **Translation history** per site, with pagination via the `/api/history`
   endpoint.
 
-## 🧭 V2.0 — Accounts & Dashboard (Milestone 4 of 5)
+## 🧭 V2.0 — Accounts & Dashboard (complete)
 
 V2.0 is turning WebNew into a self-serve SaaS (accounts, dashboard, billing) on
 top of the V1.0 widget/API described above, without changing how the widget or
@@ -105,7 +105,10 @@ top of the V1.0 widget/API described above, without changing how the widget or
   SVG/CSS — no charting library — using a single validated accent hue
   (`#2a78d6`) via the `dataviz` skill's method rather than ad hoc colors.
 
-Milestone 5 (Stripe billing + plan gating) is not yet built.
+V2.0's original roadmap had a 5th milestone (Stripe billing + plan gating),
+deliberately dropped — this deployment doesn't monetize, so a payments layer
+would be pure overhead with no product benefit. V2.0 is considered complete
+as of Milestone 4.
 
 ## 🚀 Tech Stack
 
