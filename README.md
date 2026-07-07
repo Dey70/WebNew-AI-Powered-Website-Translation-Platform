@@ -138,6 +138,25 @@ MyMemory's embedded quota errors already use).
   real hreflang/sitemap SEO would need a much bigger architecture change
   (effectively a rendering proxy) — not a V3-sized feature.
 
+## 🔐 V4.0 — Milestone 1: Two-Factor Authentication (TOTP)
+
+Supabase Auth has TOTP MFA built in natively (managed entirely in Supabase's
+own `auth.mfa_factors` table) — no new migration, this is wiring up an
+existing platform feature:
+
+- **`app/dashboard/security/page.js`** — enroll (QR + manual secret + verify
+  code), view status, remove a factor.
+- **`app/mfa-challenge/page.js`** — the post-login code-entry step for
+  accounts with 2FA enabled.
+- **The actual enforcement is server-side**, in `app/dashboard/layout.js`
+  (the same guard that already checks for a session): after `getUser()`, it
+  now also calls `supabase.auth.mfa.getAuthenticatorAssuranceLevel()` and
+  redirects to `/mfa-challenge` if the session hasn't completed a required
+  challenge yet. This runs on every dashboard page load regardless of sign-in
+  method (password, Google, GitHub), so there's no path that skips it — not
+  just a client-side redirect on the login page (which also checks, for
+  smoother UX, but isn't the actual security boundary).
+
 ## 🚀 Tech Stack
 
 - **Next.js 14** (Pages Router) + React 18 — the app is one Next.js monolith;

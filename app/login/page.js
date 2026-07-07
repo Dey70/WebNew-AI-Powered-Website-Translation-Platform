@@ -31,10 +31,20 @@ export default function LoginPage() {
       password,
     });
 
+    if (signInError) {
+      setLoading(false);
+      setError(signInError.message);
+      return;
+    }
+
+    // If this account has 2FA enrolled, go straight to the challenge instead
+    // of bouncing through /dashboard -- app/dashboard/layout.js enforces this
+    // server-side regardless, this is just the smoother client-side path.
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
     setLoading(false);
 
-    if (signInError) {
-      setError(signInError.message);
+    if (aal && aal.nextLevel === "aal2" && aal.currentLevel !== aal.nextLevel) {
+      router.push("/mfa-challenge");
       return;
     }
 
