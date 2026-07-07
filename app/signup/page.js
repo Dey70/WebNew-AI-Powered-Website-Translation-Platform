@@ -38,10 +38,10 @@ export default function SignupPage() {
   if (submitted) {
     return (
       <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-4 text-center">
-        <h1 className="mb-2 text-2xl font-semibold">Check your email</h1>
-        <p className="text-sm text-slate-600">
-          We sent a confirmation link to <strong>{email}</strong>. Click it to
-          verify your account and finish signing up.
+        <h1 className="mb-2 text-2xl font-semibold text-white">Check your email</h1>
+        <p className="text-sm text-white/60">
+          We sent a confirmation link to <strong className="text-white">{email}</strong>. Click it
+          to verify your account and finish signing up.
         </p>
       </main>
     );
@@ -49,21 +49,21 @@ export default function SignupPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-4">
-      <h1 className="mb-6 text-2xl font-semibold">Create your WebNew account</h1>
+      <h1 className="mb-6 text-2xl font-semibold text-white">Create your WebNew account</h1>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex flex-col gap-1 text-sm text-white/80">
           Email
           <input
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="rounded border border-slate-300 px-3 py-2"
+            className="rounded border border-white/10 bg-white/5 px-3 py-2 text-white placeholder-white/30 outline-none transition focus:border-brand-red-500"
           />
         </label>
 
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex flex-col gap-1 text-sm text-white/80">
           Password
           <input
             type="password"
@@ -71,24 +71,24 @@ export default function SignupPage() {
             minLength={8}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="rounded border border-slate-300 px-3 py-2"
+            className="rounded border border-white/10 bg-white/5 px-3 py-2 text-white placeholder-white/30 outline-none transition focus:border-brand-red-500"
           />
         </label>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-brand-red-400">{error}</p>}
 
         <button
           type="submit"
           disabled={loading}
-          className="rounded bg-slate-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="rounded bg-brand-cta px-3 py-2 text-sm font-medium text-white shadow-[0_4px_15px_rgba(148,13,13,0.3)] transition hover:bg-brand-cta-hover disabled:opacity-50"
         >
           {loading ? "Creating account..." : "Create account"}
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-slate-500">
+      <p className="mt-6 text-center text-sm text-white/50">
         Already have an account?{" "}
-        <Link href="/login" className="hover:underline">
+        <Link href="/login" className="hover:text-white hover:underline">
           Log in
         </Link>
       </p>

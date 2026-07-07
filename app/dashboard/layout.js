@@ -14,10 +14,10 @@ export default async function DashboardLayout({ children }) {
 
   return (
     <div className="min-h-screen">
-      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
-        <span className="text-lg font-semibold">WebNew</span>
+      <header className="flex items-center justify-between border-b border-white/10 bg-white/5 px-6 py-4 backdrop-blur">
+        <span className="text-lg font-semibold text-white">WebNew</span>
         <div className="flex items-center gap-4">
-          <span className="text-sm text-slate-600">{user.email}</span>
+          <span className="text-sm text-white/60">{user.email}</span>
           <LogoutButton />
         </div>
       </header>

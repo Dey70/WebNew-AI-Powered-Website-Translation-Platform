@@ -123,8 +123,8 @@ export default function SiteDetailPage() {
     if (json.success) router.push(`/dashboard/projects/${projectId}`);
   }
 
-  if (loading) return <p className="text-sm text-slate-500">Loading...</p>;
-  if (!site) return <p className="text-sm text-red-600">Site not found.</p>;
+  if (loading) return <p className="text-sm text-white/50">Loading...</p>;
+  if (!site) return <p className="text-sm text-brand-red-400">Site not found.</p>;
 
   // This dashboard and /cdn/webnew.js + /api/translate are the same Next.js
   // app, so the browser's own origin is always the correct base URL --
@@ -142,29 +142,29 @@ export default function SiteDetailPage() {
     <div className="mx-auto max-w-3xl">
       <Link
         href={`/dashboard/projects/${projectId}`}
-        className="text-sm text-slate-500 hover:underline"
+        className="text-sm text-white/50 hover:text-white hover:underline"
       >
         ← Back to project
       </Link>
 
       <div className="mt-2 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">{site.name}</h1>
+        <h1 className="text-2xl font-semibold text-white">{site.name}</h1>
         <div className="flex items-center gap-2">
           <Link
             href={`/dashboard/projects/${projectId}/sites/${siteId}/analytics`}
-            className="text-sm text-slate-500 hover:underline"
+            className="text-sm text-white/50 hover:text-white hover:underline"
           >
             View analytics →
           </Link>
           <button
             onClick={handleToggleActive}
-            className="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50"
+            className="rounded border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white transition hover:bg-white/10"
           >
             {site.is_active ? "Pause translation" : "Resume translation"}
           </button>
           <button
             onClick={handleDeleteSite}
-            className="rounded border border-red-300 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
+            className="rounded border border-brand-red-500/50 px-3 py-1.5 text-sm text-brand-red-400 transition hover:bg-brand-red-500/10"
           >
             Delete site
           </button>
@@ -172,30 +172,30 @@ export default function SiteDetailPage() {
       </div>
 
       <form onSubmit={handleSave} className="mt-6 flex flex-col gap-3">
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex flex-col gap-1 text-sm text-white/80">
           Name
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="rounded border border-slate-300 px-3 py-2"
+            className="rounded border border-white/10 bg-white/5 px-3 py-2 text-white outline-none transition focus:border-brand-red-500"
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex flex-col gap-1 text-sm text-white/80">
           Allowed origins (comma-separated)
           <input
             type="text"
             value={origins}
             onChange={(e) => setOrigins(e.target.value)}
-            className="rounded border border-slate-300 px-3 py-2"
+            className="rounded border border-white/10 bg-white/5 px-3 py-2 text-white outline-none transition focus:border-brand-red-500"
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex flex-col gap-1 text-sm text-white/80">
           Translation provider
           <select
             value={provider}
             onChange={(e) => setProvider(e.target.value)}
-            className="rounded border border-slate-300 px-3 py-2"
+            className="rounded border border-white/10 bg-brand-charcoal px-3 py-2 text-white outline-none transition focus:border-brand-red-500"
           >
             <option value="mymemory">MyMemory (default, free)</option>
             <option value="deepl">DeepL (requires DEEPL_API_KEY)</option>
@@ -204,32 +204,32 @@ export default function SiteDetailPage() {
         <button
           type="submit"
           disabled={saving}
-          className="self-start rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="self-start rounded bg-brand-cta px-4 py-2 text-sm font-medium text-white shadow-[0_4px_15px_rgba(148,13,13,0.3)] transition hover:bg-brand-cta-hover disabled:opacity-50"
         >
           {saving ? "Saving..." : "Save changes"}
         </button>
       </form>
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      {error && <p className="mt-2 text-sm text-brand-red-400">{error}</p>}
 
-      <h2 className="mt-8 text-lg font-medium">Embed snippet</h2>
-      <pre className="mt-2 overflow-x-auto rounded border border-slate-200 bg-white p-3 text-xs">
+      <h2 className="mt-8 text-lg font-medium text-white">Embed snippet</h2>
+      <pre className="mt-2 overflow-x-auto rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-white">
         {embedSnippet}
       </pre>
       {!newKey && (
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-white/40">
           The API key was only shown once, at creation or the last time you regenerated it.
           Replace <code>YOUR_API_KEY</code> above with the value you saved.
         </p>
       )}
 
-      <h2 className="mt-8 text-lg font-medium">API keys</h2>
+      <h2 className="mt-8 text-lg font-medium text-white">API keys</h2>
 
       {(site.apiKeys || []).length === 0 ? (
-        <p className="mt-2 text-sm text-slate-500">No keys yet.</p>
+        <p className="mt-2 text-sm text-white/50">No keys yet.</p>
       ) : (
-        <table className="mt-2 w-full rounded border border-slate-200 bg-white text-sm">
+        <table className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 text-sm shadow-[0_10px_30px_rgba(0,0,0,0.3)]">
           <thead>
-            <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+            <tr className="border-b border-white/10 text-left text-xs uppercase text-white/40">
               <th className="px-3 py-2">Label</th>
               <th className="px-3 py-2">Prefix</th>
               <th className="px-3 py-2">Status</th>
@@ -240,22 +240,22 @@ export default function SiteDetailPage() {
           </thead>
           <tbody>
             {site.apiKeys.map((key) => (
-              <tr key={key.id} className="border-b border-slate-100 last:border-0">
+              <tr key={key.id} className="border-b border-white/5 text-white last:border-0">
                 <td className="px-3 py-2">{key.label || "Unnamed key"}</td>
                 <td className="px-3 py-2">
-                  <code className="rounded bg-slate-100 px-1.5 py-0.5">{key.key_prefix}</code>
+                  <code className="rounded bg-black/30 px-1.5 py-0.5">{key.key_prefix}</code>
                 </td>
                 <td className="px-3 py-2">
                   {key.is_active ? (
-                    <span className="text-green-600">Active</span>
+                    <span className="text-green-400">Active</span>
                   ) : (
-                    <span className="text-slate-400">Revoked</span>
+                    <span className="text-white/40">Revoked</span>
                   )}
                 </td>
-                <td className="px-3 py-2 text-slate-500">
+                <td className="px-3 py-2 text-white/50">
                   {new Date(key.created_at).toLocaleDateString()}
                 </td>
-                <td className="px-3 py-2 text-slate-500">
+                <td className="px-3 py-2 text-white/50">
                   {key.last_used_at ? new Date(key.last_used_at).toLocaleDateString() : "Never"}
                 </td>
                 <td className="px-3 py-2 text-right">
@@ -263,7 +263,7 @@ export default function SiteDetailPage() {
                     <button
                       onClick={() => handleRevokeKey(key.id)}
                       disabled={revokingKeyId === key.id}
-                      className="text-red-600 hover:underline disabled:opacity-50"
+                      className="text-brand-red-400 hover:underline disabled:opacity-50"
                     >
                       {revokingKeyId === key.id ? "Revoking..." : "Revoke"}
                     </button>
@@ -281,23 +281,25 @@ export default function SiteDetailPage() {
           placeholder="Label (optional, e.g. Production)"
           value={keyLabel}
           onChange={(e) => setKeyLabel(e.target.value)}
-          className="flex-1 rounded border border-slate-300 px-3 py-2 text-sm"
+          className="flex-1 rounded border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none transition focus:border-brand-red-500"
         />
         <button
           type="submit"
           disabled={creatingKey}
-          className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="rounded bg-brand-cta px-4 py-2 text-sm font-medium text-white shadow-[0_4px_15px_rgba(148,13,13,0.3)] transition hover:bg-brand-cta-hover disabled:opacity-50"
         >
           {creatingKey ? "Creating..." : "Create new key"}
         </button>
       </form>
 
       {newKey && (
-        <div className="mt-4 rounded border border-amber-300 bg-amber-50 p-4">
-          <p className="text-sm font-medium text-amber-900">
+        <div className="mt-4 rounded-xl border border-amber-400/30 bg-amber-400/10 p-4">
+          <p className="text-sm font-medium text-amber-200">
             Save this new API key now — it will not be shown again.
           </p>
-          <code className="mt-2 block break-all rounded bg-white p-2 text-xs">{newKey}</code>
+          <code className="mt-2 block break-all rounded bg-black/30 p-2 text-xs text-white">
+            {newKey}
+          </code>
         </div>
       )}
     </div>

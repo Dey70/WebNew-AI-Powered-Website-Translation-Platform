@@ -85,8 +85,8 @@ export default function ProjectDetailPage() {
     if (json.success) router.push("/dashboard");
   }
 
-  if (loading) return <p className="text-sm text-slate-500">Loading...</p>;
-  if (!project) return <p className="text-sm text-red-600">Project not found.</p>;
+  if (loading) return <p className="text-sm text-white/50">Loading...</p>;
+  if (!project) return <p className="text-sm text-brand-red-400">Project not found.</p>;
 
   // This dashboard and /cdn/webnew.js + /api/translate are the same Next.js
   // app, so the browser's own origin is always the correct base URL --
@@ -102,15 +102,15 @@ export default function ProjectDetailPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <Link href="/dashboard" className="text-sm text-slate-500 hover:underline">
+      <Link href="/dashboard" className="text-sm text-white/50 hover:text-white hover:underline">
         ← All projects
       </Link>
 
       <div className="mt-2 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">
+        <h1 className="text-2xl font-semibold text-white">
           {project.name}
           {project.archived_at && (
-            <span className="ml-2 rounded bg-slate-200 px-2 py-0.5 text-xs font-normal text-slate-600">
+            <span className="ml-2 rounded bg-white/10 px-2 py-0.5 text-xs font-normal text-white/60">
               Archived
             </span>
           )}
@@ -118,34 +118,34 @@ export default function ProjectDetailPage() {
         <div className="flex gap-2">
           <button
             onClick={handleArchiveToggle}
-            className="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50"
+            className="rounded border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white transition hover:bg-white/10"
           >
             {project.archived_at ? "Unarchive" : "Archive"}
           </button>
           <button
             onClick={handleDeleteProject}
-            className="rounded border border-red-300 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
+            className="rounded border border-brand-red-500/50 px-3 py-1.5 text-sm text-brand-red-400 transition hover:bg-brand-red-500/10"
           >
             Delete
           </button>
         </div>
       </div>
 
-      <h2 className="mt-8 text-lg font-medium">Sites</h2>
+      <h2 className="mt-8 text-lg font-medium text-white">Sites</h2>
 
       {sites.length === 0 ? (
-        <p className="mt-2 text-sm text-slate-500">No sites yet in this project.</p>
+        <p className="mt-2 text-sm text-white/50">No sites yet in this project.</p>
       ) : (
-        <ul className="mt-2 divide-y divide-slate-200 rounded border border-slate-200 bg-white">
+        <ul className="mt-2 divide-y divide-white/10 rounded-xl border border-white/10 bg-white/5 shadow-[0_10px_30px_rgba(0,0,0,0.3)]">
           {sites.map((site) => (
             <li key={site.id}>
               <Link
                 href={`/dashboard/projects/${projectId}/sites/${site.id}`}
-                className="flex items-center justify-between px-4 py-3 hover:bg-slate-50"
+                className="flex items-center justify-between px-4 py-3 transition hover:bg-white/10"
               >
-                <span className="font-medium">{site.name}</span>
+                <span className="font-medium text-white">{site.name}</span>
                 <span
-                  className={`text-xs ${site.is_active ? "text-green-600" : "text-slate-400"}`}
+                  className={`text-xs ${site.is_active ? "text-green-400" : "text-white/40"}`}
                 >
                   {site.is_active ? "Active" : "Paused"}
                 </span>
@@ -155,7 +155,7 @@ export default function ProjectDetailPage() {
         </ul>
       )}
 
-      <h3 className="mt-8 text-base font-medium">Register a new site</h3>
+      <h3 className="mt-8 text-base font-medium text-white">Register a new site</h3>
       <form onSubmit={handleCreateSite} className="mt-2 flex flex-col gap-3">
         <input
           type="text"
@@ -163,7 +163,7 @@ export default function ProjectDetailPage() {
           placeholder="Site name"
           value={siteName}
           onChange={(e) => setSiteName(e.target.value)}
-          className="rounded border border-slate-300 px-3 py-2 text-sm"
+          className="rounded border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none transition focus:border-brand-red-500"
         />
         <input
           type="text"
@@ -171,28 +171,30 @@ export default function ProjectDetailPage() {
           placeholder="Allowed origins, comma-separated (e.g. example.com, www.example.com)"
           value={origins}
           onChange={(e) => setOrigins(e.target.value)}
-          className="rounded border border-slate-300 px-3 py-2 text-sm"
+          className="rounded border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none transition focus:border-brand-red-500"
         />
         <button
           type="submit"
           disabled={creatingSite}
-          className="self-start rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="self-start rounded bg-brand-cta px-4 py-2 text-sm font-medium text-white shadow-[0_4px_15px_rgba(148,13,13,0.3)] transition hover:bg-brand-cta-hover disabled:opacity-50"
         >
           {creatingSite ? "Registering..." : "Register Site"}
         </button>
       </form>
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      {error && <p className="mt-2 text-sm text-brand-red-400">{error}</p>}
 
       {newSiteResult && (
-        <div className="mt-4 rounded border border-amber-300 bg-amber-50 p-4">
-          <p className="text-sm font-medium text-amber-900">
+        <div className="mt-4 rounded-xl border border-amber-400/30 bg-amber-400/10 p-4">
+          <p className="text-sm font-medium text-amber-200">
             Save this API key now — it will not be shown again.
           </p>
-          <code className="mt-2 block break-all rounded bg-white p-2 text-xs">
+          <code className="mt-2 block break-all rounded bg-black/30 p-2 text-xs text-white">
             {newSiteResult.apiKey}
           </code>
-          <p className="mt-3 text-sm font-medium text-amber-900">Embed snippet</p>
-          <pre className="mt-2 overflow-x-auto rounded bg-white p-2 text-xs">{embedSnippet}</pre>
+          <p className="mt-3 text-sm font-medium text-amber-200">Embed snippet</p>
+          <pre className="mt-2 overflow-x-auto rounded bg-black/30 p-2 text-xs text-white">
+            {embedSnippet}
+          </pre>
         </div>
       )}
     </div>

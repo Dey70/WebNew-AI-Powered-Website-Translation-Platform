@@ -324,7 +324,13 @@ Switch language programmatically with `WebNewTranslate.setLanguage('french')`
 - **Adding languages**: update `SUPPORTED_INTERNAL`/`isoToInternal` in
   `public/cdn/webnew.js` and `lib/translation/languages.js` together — they must
   stay in sync.
-- **Styling**: `public/styles/style.css`.
+- **Styling**: marketing page is `public/styles/style.css`. The `app/**`
+  dashboard/auth pages use Tailwind, themed to match that same black/red
+  brand exactly — the `brand` color scale and gradient utilities are defined
+  in `tailwind.config.js` (extracted directly from `style.css`'s `.cta-button`/
+  body/`.pricing-card` rules, not approximated), so new dashboard UI should
+  reuse those tokens (`bg-brand-cta`, `border-brand-red-500`, etc.) rather
+  than reintroducing the old slate/white defaults.
 - **Translation provider**: MyMemory and DeepL are already pluggable per site
   (see V3.0 above). Adding a third: create `lib/translation/providers/<name>.js`
   exporting the same `translate(text, sourceIso, targetIso, config)` contract,
