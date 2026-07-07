@@ -48,8 +48,10 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/dashboard");
-    router.refresh();
+    // Hard navigation, not router.push+refresh: avoids racing the just-set
+    // auth cookie against the dashboard layout's server-side session read
+    // (see the identical fix in app/mfa-challenge/page.js for why).
+    window.location.href = "/dashboard";
   }
 
   async function handleOAuth(provider) {

@@ -55,8 +55,12 @@ export default function MfaChallengePage() {
       return;
     }
 
-    router.push("/dashboard");
-    router.refresh();
+    // A client-side router.push here can race the Supabase auth cookie
+    // actually committing the new (post-verify) AAL level -- the dashboard
+    // layout's server-side check would then read the stale pre-verify state
+    // and silently bounce back to this same page. A hard navigation
+    // guarantees the next request carries the fully-committed cookie.
+    window.location.href = "/dashboard";
   }
 
   async function handleLogout() {
