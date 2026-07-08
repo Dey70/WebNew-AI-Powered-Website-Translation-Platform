@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { createSite, listSites } from "@/lib/sites";
+import { userHasProjectAccess } from "@/lib/projects";
 
 export async function GET(request) {
   const user = await getSessionUser();
@@ -9,7 +10,15 @@ export async function GET(request) {
   }
 
   const projectId = new URL(request.url).searchParams.get("projectId") || undefined;
-  const data = await listSites({ ownerId: user.id, projectId });
+
+  // listSites trusts the caller to have already verified project access when
+  // a projectId is given (it lists every site in the project, not just the
+  // caller's own) -- this is that check.
+  if (projectId && !(await userHasProjectAccess({ userId: user.id, projectId }))) {
+    return NextResponse.json({ success: false, error: "not_found" }, { status: 404 });
+  }
+
+  const data = await listSites({ userId: user.id, projectId });
   return NextResponse.json({ success: true, data });
 }
 
@@ -26,8 +35,8 @@ export async function POST(request) {
   }
 
   const result = await createSite({
-    ownerId: user.id,
-    ownerEmail: user.email,
+    userId: user.id,
+    userEmail: user.email,
     projectId: body.projectId || null,
     name,
     allowedOrigins: body.allowedOrigins,

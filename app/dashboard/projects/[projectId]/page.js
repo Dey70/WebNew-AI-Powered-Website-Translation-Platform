@@ -18,17 +18,25 @@ export default function ProjectDetailPage() {
   const [creatingSite, setCreatingSite] = useState(false);
   const [newSiteResult, setNewSiteResult] = useState(null);
 
+  const [members, setMembers] = useState([]);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviting, setInviting] = useState(false);
+  const [inviteError, setInviteError] = useState(null);
+
   async function loadAll() {
     setLoading(true);
-    const [projectRes, sitesRes] = await Promise.all([
+    const [projectRes, sitesRes, membersRes] = await Promise.all([
       fetch(`/api/projects/${projectId}`),
       fetch(`/api/sites?projectId=${projectId}`),
+      fetch(`/api/projects/${projectId}/members`),
     ]);
     const projectJson = await projectRes.json();
     const sitesJson = await sitesRes.json();
+    const membersJson = await membersRes.json();
 
     if (projectJson.success) setProject(projectJson.data);
     if (sitesJson.success) setSites(sitesJson.data);
+    if (membersJson.success) setMembers(membersJson.data);
     setLoading(false);
   }
 
@@ -85,6 +93,44 @@ export default function ProjectDetailPage() {
     if (json.success) router.push("/dashboard");
   }
 
+  async function handleInvite(e) {
+    e.preventDefault();
+    setInviteError(null);
+    setInviting(true);
+
+    const res = await fetch(`/api/projects/${projectId}/members`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: inviteEmail }),
+    });
+    const json = await res.json();
+    setInviting(false);
+
+    if (!json.success) {
+      const messages = {
+        no_account_for_email: "No WebNew account exists for that email yet.",
+        already_a_member: "That person is already a member of this project.",
+        already_owner: "That's you — you already own this project.",
+      };
+      setInviteError(messages[json.error] || json.error || "Failed to invite");
+      return;
+    }
+
+    setInviteEmail("");
+    loadAll();
+  }
+
+  async function handleRemoveMember(memberUserId) {
+    if (!confirm("Remove this member from the project? They'll lose access to all its sites.")) {
+      return;
+    }
+    const res = await fetch(`/api/projects/${projectId}/members/${memberUserId}`, {
+      method: "DELETE",
+    });
+    const json = await res.json();
+    if (json.success) loadAll();
+  }
+
   if (loading) return <p className="text-sm text-white/50">Loading...</p>;
   if (!project) return <p className="text-sm text-brand-red-400">Project not found.</p>;
 
@@ -115,20 +161,22 @@ export default function ProjectDetailPage() {
             </span>
           )}
         </h1>
-        <div className="flex gap-2">
-          <button
-            onClick={handleArchiveToggle}
-            className="rounded border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white transition hover:bg-white/10"
-          >
-            {project.archived_at ? "Unarchive" : "Archive"}
-          </button>
-          <button
-            onClick={handleDeleteProject}
-            className="rounded border border-brand-red-500/50 px-3 py-1.5 text-sm text-brand-red-400 transition hover:bg-brand-red-500/10"
-          >
-            Delete
-          </button>
-        </div>
+        {project.isOwner && (
+          <div className="flex gap-2">
+            <button
+              onClick={handleArchiveToggle}
+              className="rounded border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white transition hover:bg-white/10"
+            >
+              {project.archived_at ? "Unarchive" : "Archive"}
+            </button>
+            <button
+              onClick={handleDeleteProject}
+              className="rounded border border-brand-red-500/50 px-3 py-1.5 text-sm text-brand-red-400 transition hover:bg-brand-red-500/10"
+            >
+              Delete
+            </button>
+          </div>
+        )}
       </div>
 
       <h2 className="mt-8 text-lg font-medium text-white">Sites</h2>
@@ -197,6 +245,48 @@ export default function ProjectDetailPage() {
           </pre>
         </div>
       )}
+
+      <h2 className="mt-8 text-lg font-medium text-white">Members</h2>
+      <ul className="mt-2 divide-y divide-white/10 rounded-xl border border-white/10 bg-white/5 shadow-[0_10px_30px_rgba(0,0,0,0.3)]">
+        <li className="flex items-center justify-between px-4 py-3">
+          <span className="text-white">Owner</span>
+          <span className="text-xs text-white/40">Owner</span>
+        </li>
+        {members.map((member) => (
+          <li key={member.id} className="flex items-center justify-between px-4 py-3">
+            <span className="text-white">{member.profiles?.email || member.user_id}</span>
+            {project.isOwner && (
+              <button
+                onClick={() => handleRemoveMember(member.user_id)}
+                className="text-sm text-brand-red-400 hover:underline"
+              >
+                Remove
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      {project.isOwner && (
+        <form onSubmit={handleInvite} className="mt-4 flex gap-2">
+          <input
+            type="email"
+            required
+            placeholder="Invite by email (they must already have a WebNew account)"
+            value={inviteEmail}
+            onChange={(e) => setInviteEmail(e.target.value)}
+            className="flex-1 rounded border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none transition focus:border-brand-red-500"
+          />
+          <button
+            type="submit"
+            disabled={inviting}
+            className="rounded bg-brand-cta px-4 py-2 text-sm font-medium text-white shadow-[0_4px_15px_rgba(148,13,13,0.3)] transition hover:bg-brand-cta-hover disabled:opacity-50"
+          >
+            {inviting ? "Inviting..." : "Invite"}
+          </button>
+        </form>
+      )}
+      {inviteError && <p className="mt-2 text-sm text-brand-red-400">{inviteError}</p>}
     </div>
   );
 }

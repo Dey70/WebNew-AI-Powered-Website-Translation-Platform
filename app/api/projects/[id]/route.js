@@ -9,11 +9,14 @@ export async function GET(request, { params }) {
   }
 
   const { id } = await params;
-  const project = await getProject({ ownerId: user.id, id });
+  const project = await getProject({ userId: user.id, id });
   if (!project) {
     return NextResponse.json({ success: false, error: "not_found" }, { status: 404 });
   }
-  return NextResponse.json({ success: true, data: project });
+  return NextResponse.json({
+    success: true,
+    data: { ...project, isOwner: project.owner_id === user.id },
+  });
 }
 
 export async function PATCH(request, { params }) {

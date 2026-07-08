@@ -9,7 +9,7 @@ export async function GET(request) {
   }
 
   const includeArchived = new URL(request.url).searchParams.get("includeArchived") === "true";
-  const data = await listProjects({ ownerId: user.id, includeArchived });
+  const data = await listProjects({ userId: user.id, includeArchived });
   return NextResponse.json({ success: true, data });
 }
 

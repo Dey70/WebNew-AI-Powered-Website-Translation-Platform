@@ -9,7 +9,7 @@ export async function GET(request, { params }) {
   }
 
   const { id } = await params;
-  const site = await getSite({ ownerId: user.id, id });
+  const site = await getSite({ userId: user.id, id });
   if (!site) {
     return NextResponse.json({ success: false, error: "not_found" }, { status: 404 });
   }
@@ -26,7 +26,7 @@ export async function PATCH(request, { params }) {
   const body = await request.json().catch(() => ({}));
 
   const result = await updateSite({
-    ownerId: user.id,
+    userId: user.id,
     id,
     name: typeof body.name === "string" ? body.name.trim() : undefined,
     allowedOrigins: body.allowedOrigins,
@@ -55,7 +55,7 @@ export async function DELETE(request, { params }) {
   }
 
   const { id } = await params;
-  const result = await deleteSite({ ownerId: user.id, id });
+  const result = await deleteSite({ userId: user.id, id });
   if (!result.ok) {
     return NextResponse.json({ success: false, error: result.error }, { status: 500 });
   }

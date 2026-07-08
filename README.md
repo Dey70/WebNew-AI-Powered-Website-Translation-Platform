@@ -188,6 +188,39 @@ paths, not a formality — found two real, concrete issues:
 - **`middleware.js`'s matcher was missing `/mfa-challenge`** — added during
   the 2FA milestone but never added to the session-refresh matcher.
 
+## 👥 V4.0 — Milestone 3: Team Roles (final roadmap item)
+
+Every project/site/key/analytics operation was gated by a strict "you are the
+sole `owner_id`" check — "Invite Members" had been stubbed as "disabled until
+V4" since Milestone 2. Adds an **Owner** (unchanged) + **Member** model:
+members get full operational access to a shared project's sites (create/
+edit/pause/delete sites, manage API keys, view analytics) but not
+project-level administration (rename/archive/delete the project, invite/
+remove members).
+
+- **Invites are by email, only if that email already has a WebNew account**
+  — no new email infrastructure, the same realistic-scoping decision made
+  for billing (V2), SEO (V3), and device sessions (this V4). If no account
+  matches, the owner gets an honest "no account with that email yet" error.
+- New `project_members` table (migration `008_create_project_members.sql`)
+  — a row's existence *is* "member"; ownership stays `projects.owner_id`.
+- **The authorization pattern shift**: "owner OR member of the project" can't
+  be expressed as a single `WHERE owner_id = X` clause the way every route
+  worked before. It's now "an explicit access check runs first
+  (`userHasProjectAccess`/`userCanAccessSite` in `lib/projects.js`/
+  `lib/sites.js`), then the operation proceeds scoped by primary key" — still
+  safe, the check happens synchronously before any read/mutation. Sites with
+  no `project_id` (old CLI-created ones) stay strictly single-owner — there's
+  no project to share membership through.
+- New `app/api/projects/[id]/members/route.js` (list/invite) and
+  `.../members/[userId]/route.js` (remove), both owner-only for mutation.
+  Project detail page shows the member list to everyone with access; only
+  the owner sees the invite form and remove buttons.
+- This is the highest-stakes change in the app (an authorization boundary,
+  not a feature) — `tests/unit/projects.test.js`/`sites.test.js` cover owner
+  access, member-via-project access, and a stranger being denied for every
+  affected function.
+
 ## 🚀 Tech Stack
 
 - **Next.js 14** (Pages Router) + React 18 — the app is one Next.js monolith;
@@ -263,6 +296,7 @@ paths, not a formality — found two real, concrete issues:
 │   ├── 005_add_projects_slug_unique.sql       # V2.0 Milestone 2
 │   ├── 006_add_api_key_label.sql              # V2.0 Milestone 3
 │   ├── 007_add_site_provider.sql              # V3.0
+│   ├── 008_create_project_members.sql         # V4.0 Milestone 3
 │   ├── create-site.js        # Local-only onboarding CLI (issues an API key)
 │   ├── list-sites.js
 │   └── revoke-api-key.js
@@ -297,7 +331,8 @@ paths, not a formality — found two real, concrete issues:
    `scripts/001_create_translation_history.sql`, then `002_create_sites_and_api_keys.sql`,
    then `003_add_site_id_to_translation_history.sql`, then
    `004_create_profiles_and_projects.sql`, then `005_add_projects_slug_unique.sql`,
-   then `006_add_api_key_label.sql`, then `007_add_site_provider.sql`.
+   then `006_add_api_key_label.sql`, then `007_add_site_provider.sql`, then
+   `008_create_project_members.sql`.
    Migration 003 truncates `translation_history` (it only ever held unscoped
    demo data).
 

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
-import { getServiceClient } from "@/lib/supabase/admin";
-import { siteBelongsToOwner } from "@/lib/sites";
+import { userCanAccessSite } from "@/lib/sites";
 import { getSiteAnalytics } from "@/lib/analytics";
 
 export async function GET(request, { params }) {
@@ -11,8 +10,7 @@ export async function GET(request, { params }) {
   }
 
   const { id } = await params;
-  const supabase = getServiceClient();
-  if (!supabase || !(await siteBelongsToOwner(supabase, user.id, id))) {
+  if (!(await userCanAccessSite({ userId: user.id, siteId: id }))) {
     return NextResponse.json({ success: false, error: "not_found" }, { status: 404 });
   }
 

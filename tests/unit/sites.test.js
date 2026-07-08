@@ -4,11 +4,11 @@ vi.mock("@/lib/supabase/admin", () => ({
   getServiceClient: vi.fn(),
 }));
 vi.mock("@/lib/projects", () => ({
-  getProject: vi.fn(),
+  userHasProjectAccess: vi.fn(),
 }));
 
 import { getServiceClient } from "@/lib/supabase/admin";
-import { getProject } from "@/lib/projects";
+import { userHasProjectAccess } from "@/lib/projects";
 import {
   createSite,
   listSites,
@@ -17,10 +17,10 @@ import {
   deleteSite,
   createApiKey,
   revokeApiKey,
+  userCanAccessSite,
 } from "@/lib/sites";
 
-// Minimal chainable fake, keyed per table, matching lib/sites.js's exact call shapes:
-// .insert().select().single() / .select().eq()...maybeSingle()-or-thenable / .update().eq().eq().select().maybeSingle() / .delete().eq()...
+// Minimal chainable fake, keyed per table, matching lib/sites.js's exact call shapes.
 function chain(result) {
   const node = {
     eq: () => node,
@@ -65,7 +65,41 @@ function makeClient(tableHandlers) {
 describe("lib/sites.js", () => {
   beforeEach(() => {
     getServiceClient.mockReset();
-    getProject.mockReset();
+    userHasProjectAccess.mockReset();
+  });
+
+  describe("userCanAccessSite", () => {
+    it("returns true for the site's own owner_id", async () => {
+      getServiceClient.mockReturnValue(
+        makeClient({ sites: { select: () => ({ data: { id: "s1", owner_id: "user-1", project_id: null }, error: null }) } })
+      );
+      expect(await userCanAccessSite({ userId: "user-1", siteId: "s1" })).toBe(true);
+    });
+
+    it("returns true for a project member when the site has a project_id", async () => {
+      userHasProjectAccess.mockResolvedValue(true);
+      getServiceClient.mockReturnValue(
+        makeClient({ sites: { select: () => ({ data: { id: "s1", owner_id: "someone-else", project_id: "p1" }, error: null }) } })
+      );
+      expect(await userCanAccessSite({ userId: "member-1", siteId: "s1" })).toBe(true);
+      expect(userHasProjectAccess).toHaveBeenCalledWith({ userId: "member-1", projectId: "p1" });
+    });
+
+    it("denies a stranger when the site has no project_id (regression guard: no project to share membership through)", async () => {
+      getServiceClient.mockReturnValue(
+        makeClient({ sites: { select: () => ({ data: { id: "s1", owner_id: "someone-else", project_id: null }, error: null }) } })
+      );
+      expect(await userCanAccessSite({ userId: "stranger", siteId: "s1" })).toBe(false);
+      expect(userHasProjectAccess).not.toHaveBeenCalled();
+    });
+
+    it("denies a stranger who isn't a member of the site's project", async () => {
+      userHasProjectAccess.mockResolvedValue(false);
+      getServiceClient.mockReturnValue(
+        makeClient({ sites: { select: () => ({ data: { id: "s1", owner_id: "someone-else", project_id: "p1" }, error: null }) } })
+      );
+      expect(await userCanAccessSite({ userId: "stranger", siteId: "s1" })).toBe(false);
+    });
   });
 
   describe("createSite", () => {
@@ -73,20 +107,20 @@ describe("lib/sites.js", () => {
       const client = makeClient({});
       getServiceClient.mockReturnValue(client);
 
-      const result = await createSite({ ownerId: "user-1", ownerEmail: "a@b.com", name: "Site", allowedOrigins: [] });
+      const result = await createSite({ userId: "user-1", userEmail: "a@b.com", name: "Site", allowedOrigins: [] });
 
       expect(result).toEqual({ ok: false, error: "at_least_one_origin_required" });
       expect(client.__calls).toHaveLength(0);
     });
 
-    it("rejects a projectId that does not belong to the owner", async () => {
-      getProject.mockResolvedValue(null);
+    it("rejects a projectId the user doesn't have access to", async () => {
+      userHasProjectAccess.mockResolvedValue(false);
       const client = makeClient({});
       getServiceClient.mockReturnValue(client);
 
       const result = await createSite({
-        ownerId: "user-1",
-        ownerEmail: "a@b.com",
+        userId: "user-1",
+        userEmail: "a@b.com",
         projectId: "someone-elses-project",
         name: "Site",
         allowedOrigins: ["example.com"],
@@ -96,7 +130,7 @@ describe("lib/sites.js", () => {
       expect(client.__calls).toHaveLength(0);
     });
 
-    it("creates the site scoped to the owner, normalizes origins, and issues an API key", async () => {
+    it("creates the site scoped to the creator, normalizes origins, and issues an API key", async () => {
       const client = makeClient({
         sites: {
           insert: (payload) => ({ data: { id: "site-1", ...payload }, error: null }),
@@ -108,8 +142,8 @@ describe("lib/sites.js", () => {
       getServiceClient.mockReturnValue(client);
 
       const result = await createSite({
-        ownerId: "user-1",
-        ownerEmail: "a@b.com",
+        userId: "user-1",
+        userEmail: "a@b.com",
         name: "Site",
         allowedOrigins: ["WWW.Example.com", "example.com", "example.com"],
       });
@@ -127,6 +161,26 @@ describe("lib/sites.js", () => {
       expect(keyInsertCall.payload.key_hash).not.toBe(result.apiKey); // never stores the raw key
     });
 
+    it("allows a project member (not just the project owner) to create a site in that project", async () => {
+      userHasProjectAccess.mockResolvedValue(true);
+      const client = makeClient({
+        sites: { insert: (payload) => ({ data: { id: "site-1", ...payload }, error: null }) },
+        api_keys: { insert: () => ({ data: null, error: null }) },
+      });
+      getServiceClient.mockReturnValue(client);
+
+      const result = await createSite({
+        userId: "member-1",
+        userEmail: "member@x.com",
+        projectId: "p1",
+        name: "Site",
+        allowedOrigins: ["example.com"],
+      });
+
+      expect(result.ok).toBe(true);
+      expect(userHasProjectAccess).toHaveBeenCalledWith({ userId: "member-1", projectId: "p1" });
+    });
+
     it("rolls back the site row if issuing its API key fails", async () => {
       const client = makeClient({
         sites: {
@@ -140,8 +194,8 @@ describe("lib/sites.js", () => {
       getServiceClient.mockReturnValue(client);
 
       const result = await createSite({
-        ownerId: "user-1",
-        ownerEmail: "a@b.com",
+        userId: "user-1",
+        userEmail: "a@b.com",
         name: "Site",
         allowedOrigins: ["example.com"],
       });
@@ -152,78 +206,84 @@ describe("lib/sites.js", () => {
     });
   });
 
-  it("getSite returns null when no row matches the owner", async () => {
-    const client = makeClient({ sites: { select: () => ({ data: null, error: null }) } });
-    getServiceClient.mockReturnValue(client);
+  describe("getSite", () => {
+    it("returns null when no site matches the id at all", async () => {
+      getServiceClient.mockReturnValue(makeClient({ sites: { select: () => ({ data: null, error: null }) } }));
+      expect(await getSite({ userId: "user-1", id: "site-1" })).toBeNull();
+    });
 
-    const result = await getSite({ ownerId: "user-1", id: "site-1" });
-    expect(result).toBeNull();
+    it("returns null for a stranger without access (regression guard)", async () => {
+      getServiceClient.mockReturnValue(
+        makeClient({ sites: { select: () => ({ data: { id: "site-1", owner_id: "someone-else", project_id: null }, error: null }) } })
+      );
+      expect(await getSite({ userId: "stranger", id: "site-1" })).toBeNull();
+    });
+
+    it("returns the site plus its non-secret key metadata (never key_hash) for the owner", async () => {
+      const client = makeClient({
+        sites: { select: () => ({ data: { id: "site-1", owner_id: "user-1", project_id: null, name: "Site" }, error: null }) },
+        api_keys: {
+          select: () => ({ data: [{ id: "k1", key_prefix: "wn_live_a1B2", is_active: true }], error: null }),
+        },
+      });
+      getServiceClient.mockReturnValue(client);
+
+      const result = await getSite({ userId: "user-1", id: "site-1" });
+      expect(result.apiKeys).toEqual([{ id: "k1", key_prefix: "wn_live_a1B2", is_active: true }]);
+    });
   });
 
-  it("getSite returns the site plus its non-secret key metadata (never key_hash)", async () => {
+  describe("updateSite", () => {
+    it("reports not_found before any validation when the user has no access", async () => {
+      getServiceClient.mockReturnValue(makeClient({ sites: { select: () => ({ data: null, error: null }) } }));
+      const result = await updateSite({ userId: "stranger", id: "site-1", allowedOrigins: [] });
+      expect(result).toEqual({ ok: false, error: "not_found" });
+    });
+
+    it("rejects clearing all allowed origins for a user who does have access", async () => {
+      getServiceClient.mockReturnValue(
+        makeClient({ sites: { select: () => ({ data: { id: "site-1", owner_id: "user-1", project_id: null }, error: null }) } })
+      );
+      const result = await updateSite({ userId: "user-1", id: "site-1", allowedOrigins: [] });
+      expect(result).toEqual({ ok: false, error: "at_least_one_origin_required" });
+    });
+  });
+
+  it("deleteSite checks access before deleting, scoped by id", async () => {
     const client = makeClient({
-      sites: { select: () => ({ data: { id: "site-1", name: "Site" }, error: null }) },
-      api_keys: {
-        select: () => ({
-          data: [{ id: "k1", key_prefix: "wn_live_a1B2", is_active: true }],
-          error: null,
-        }),
-      },
+      sites: { select: () => ({ data: { id: "site-1", owner_id: "user-1", project_id: null }, error: null }) },
     });
     getServiceClient.mockReturnValue(client);
 
-    const result = await getSite({ ownerId: "user-1", id: "site-1" });
-    expect(result.apiKeys).toEqual([{ id: "k1", key_prefix: "wn_live_a1B2", is_active: true }]);
-  });
-
-  it("updateSite rejects clearing all allowed origins", async () => {
-    const client = makeClient({});
-    getServiceClient.mockReturnValue(client);
-
-    const result = await updateSite({ ownerId: "user-1", id: "site-1", allowedOrigins: [] });
-    expect(result).toEqual({ ok: false, error: "at_least_one_origin_required" });
-  });
-
-  it("updateSite reports not_found when no row matches the owner", async () => {
-    const client = makeClient({ sites: { update: () => ({ data: null, error: null }) } });
-    getServiceClient.mockReturnValue(client);
-
-    const result = await updateSite({ ownerId: "user-1", id: "site-1", isActive: false });
-    expect(result).toEqual({ ok: false, error: "not_found" });
-  });
-
-  it("deleteSite scopes the delete by both id and owner_id", async () => {
-    const client = makeClient({ sites: { delete: () => ({ error: null }) } });
-    getServiceClient.mockReturnValue(client);
-
-    const result = await deleteSite({ ownerId: "user-1", id: "site-1" });
+    const result = await deleteSite({ userId: "user-1", id: "site-1" });
     expect(result).toEqual({ ok: true });
+    expect(client.__calls.some((c) => c.table === "sites" && c.op === "delete")).toBe(true);
   });
 
   describe("createApiKey", () => {
-    it("reports not_found for a site that does not belong to the owner", async () => {
+    it("reports not_found for a site the user can't access", async () => {
       const client = makeClient({ sites: { select: () => ({ data: null, error: null }) } });
       getServiceClient.mockReturnValue(client);
 
-      const result = await createApiKey({ ownerId: "user-1", siteId: "site-1", label: "Prod" });
+      const result = await createApiKey({ userId: "user-1", siteId: "site-1", label: "Prod" });
       expect(result).toEqual({ ok: false, error: "not_found" });
     });
 
     it("rejects creating a new key once the active-key cap is reached", async () => {
       const client = makeClient({
-        sites: { select: () => ({ data: { id: "site-1" }, error: null }) },
+        sites: { select: () => ({ data: { id: "site-1", owner_id: "user-1", project_id: null }, error: null }) },
         api_keys: { select: () => ({ count: 5, error: null }) },
       });
       getServiceClient.mockReturnValue(client);
 
-      const result = await createApiKey({ ownerId: "user-1", siteId: "site-1" });
+      const result = await createApiKey({ userId: "user-1", siteId: "site-1" });
       expect(result).toEqual({ ok: false, error: "too_many_active_keys" });
       expect(client.__calls.some((c) => c.table === "api_keys" && c.op === "insert")).toBe(false);
     });
 
     it("creates a new key without touching (or being blocked by) existing ones", async () => {
       const client = makeClient({
-        sites: { select: () => ({ data: { id: "site-1" }, error: null }) },
+        sites: { select: () => ({ data: { id: "site-1", owner_id: "user-1", project_id: null }, error: null }) },
         api_keys: {
           select: () => ({ count: 1, error: null }),
           insert: () => ({ data: null, error: null }),
@@ -231,7 +291,7 @@ describe("lib/sites.js", () => {
       });
       getServiceClient.mockReturnValue(client);
 
-      const result = await createApiKey({ ownerId: "user-1", siteId: "site-1", label: "Production" });
+      const result = await createApiKey({ userId: "user-1", siteId: "site-1", label: "Production" });
 
       expect(result.ok).toBe(true);
       expect(result.apiKey.startsWith("wn_live_")).toBe(true);
@@ -240,25 +300,37 @@ describe("lib/sites.js", () => {
       expect(insertCall.payload.label).toBe("Production");
       expect(client.__calls.some((c) => c.table === "api_keys" && c.op === "update")).toBe(false);
     });
+
+    it("allows a project member (not just the owner) to manage keys on a shared site", async () => {
+      userHasProjectAccess.mockResolvedValue(true);
+      const client = makeClient({
+        sites: { select: () => ({ data: { id: "site-1", owner_id: "someone-else", project_id: "p1" }, error: null }) },
+        api_keys: { select: () => ({ count: 0, error: null }), insert: () => ({ data: null, error: null }) },
+      });
+      getServiceClient.mockReturnValue(client);
+
+      const result = await createApiKey({ userId: "member-1", siteId: "site-1" });
+      expect(result.ok).toBe(true);
+    });
   });
 
   describe("revokeApiKey", () => {
-    it("reports not_found for a site that does not belong to the owner", async () => {
+    it("reports not_found for a site the user can't access", async () => {
       const client = makeClient({ sites: { select: () => ({ data: null, error: null }) } });
       getServiceClient.mockReturnValue(client);
 
-      const result = await revokeApiKey({ ownerId: "user-1", siteId: "site-1", keyId: "key-1" });
+      const result = await revokeApiKey({ userId: "user-1", siteId: "site-1", keyId: "key-1" });
       expect(result).toEqual({ ok: false, error: "not_found" });
     });
 
     it("reports not_found when the key does not belong to that site", async () => {
       const client = makeClient({
-        sites: { select: () => ({ data: { id: "site-1" }, error: null }) },
+        sites: { select: () => ({ data: { id: "site-1", owner_id: "user-1", project_id: null }, error: null }) },
         api_keys: { update: () => ({ data: null, error: null }) },
       });
       getServiceClient.mockReturnValue(client);
 
-      const result = await revokeApiKey({ ownerId: "user-1", siteId: "site-1", keyId: "someone-elses-key" });
+      const result = await revokeApiKey({ userId: "user-1", siteId: "site-1", keyId: "someone-elses-key" });
       expect(result).toEqual({ ok: false, error: "not_found" });
     });
 
@@ -268,9 +340,7 @@ describe("lib/sites.js", () => {
         from: (table) => {
           if (table === "sites") {
             return {
-              select: () => ({
-                eq: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { id: "site-1" }, error: null }) }) }),
-              }),
+              select: () => chain({ data: { id: "site-1", owner_id: "user-1", project_id: null }, error: null }),
             };
           }
           const node = {
@@ -285,17 +355,55 @@ describe("lib/sites.js", () => {
         },
       });
 
-      const result = await revokeApiKey({ ownerId: "user-1", siteId: "site-1", keyId: "key-1" });
+      const result = await revokeApiKey({ userId: "user-1", siteId: "site-1", keyId: "key-1" });
       expect(result).toEqual({ ok: true });
       expect(capturedEq).toEqual([["id", "key-1"], ["site_id", "site-1"]]);
     });
   });
 
-  it("listSites scopes by owner_id and optionally filters by project_id", async () => {
-    const client = makeClient({ sites: { select: () => ({ data: [], error: null }) } });
-    getServiceClient.mockReturnValue(client);
+  describe("listSites", () => {
+    it("with a projectId, scopes by project_id alone (caller has already verified project access)", async () => {
+      let capturedFilters = [];
+      getServiceClient.mockReturnValue({
+        from: () => ({
+          select: () => {
+            const node = {
+              eq: (col, val) => {
+                capturedFilters.push([col, val]);
+                return node;
+              },
+              order: () => node,
+              then: (resolve) => resolve({ data: [], error: null }),
+            };
+            return node;
+          },
+        }),
+      });
 
-    const result = await listSites({ ownerId: "user-1", projectId: "proj-1" });
-    expect(result).toEqual([]);
+      await listSites({ userId: "user-1", projectId: "proj-1" });
+      expect(capturedFilters).toEqual([["project_id", "proj-1"]]);
+    });
+
+    it("without a projectId, falls back to owner_id-scoped listing", async () => {
+      let capturedFilters = [];
+      getServiceClient.mockReturnValue({
+        from: () => ({
+          select: () => {
+            const node = {
+              eq: (col, val) => {
+                capturedFilters.push([col, val]);
+                return node;
+              },
+              order: () => node,
+              then: (resolve) => resolve({ data: [], error: null }),
+            };
+            return node;
+          },
+        }),
+      });
+
+      await listSites({ userId: "user-1" });
+      expect(capturedFilters).toEqual([["owner_id", "user-1"]]);
+    });
   });
 });
