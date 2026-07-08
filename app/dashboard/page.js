@@ -5,21 +5,25 @@ import Link from "next/link";
 
 export default function DashboardPage() {
   const [projects, setProjects] = useState([]);
+  const [invites, setInvites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState(null);
+  const [respondingTo, setRespondingTo] = useState(null);
 
-  async function loadProjects() {
+  async function loadAll() {
     setLoading(true);
-    const res = await fetch("/api/projects");
-    const json = await res.json();
-    if (json.success) setProjects(json.data);
+    const [projectsRes, invitesRes] = await Promise.all([fetch("/api/projects"), fetch("/api/invites")]);
+    const projectsJson = await projectsRes.json();
+    const invitesJson = await invitesRes.json();
+    if (projectsJson.success) setProjects(projectsJson.data);
+    if (invitesJson.success) setInvites(invitesJson.data);
     setLoading(false);
   }
 
   useEffect(() => {
-    loadProjects();
+    loadAll();
   }, []);
 
   async function handleCreate(e) {
@@ -42,11 +46,50 @@ export default function DashboardPage() {
     }
 
     setName("");
-    loadProjects();
+    loadAll();
+  }
+
+  async function handleRespond(projectId, accept) {
+    setRespondingTo(projectId);
+    const res = await fetch(`/api/invites/${projectId}`, { method: accept ? "PATCH" : "DELETE" });
+    const json = await res.json();
+    setRespondingTo(null);
+    if (json.success) loadAll();
   }
 
   return (
     <div className="mx-auto max-w-3xl">
+      {invites.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-lg font-medium text-white">Pending invites</h2>
+          <ul className="mt-2 divide-y divide-white/10 rounded-xl border border-amber-400/30 bg-amber-400/10 shadow-[0_10px_30px_rgba(0,0,0,0.3)]">
+            {invites.map((invite) => (
+              <li key={invite.id} className="flex items-center justify-between px-4 py-3">
+                <span className="text-sm text-amber-100">
+                  <strong>{invite.projectName}</strong> — invited by {invite.ownerEmail || "unknown"}
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleRespond(invite.project_id, true)}
+                    disabled={respondingTo === invite.project_id}
+                    className="rounded bg-brand-cta px-3 py-1.5 text-sm font-medium text-white transition hover:bg-brand-cta-hover disabled:opacity-50"
+                  >
+                    Accept
+                  </button>
+                  <button
+                    onClick={() => handleRespond(invite.project_id, false)}
+                    disabled={respondingTo === invite.project_id}
+                    className="rounded border border-white/20 px-3 py-1.5 text-sm text-white transition hover:bg-white/10 disabled:opacity-50"
+                  >
+                    Decline
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <h1 className="text-2xl font-semibold text-white">Projects</h1>
       <p className="mt-1 text-white/60">
         Group your websites into projects. Each project can hold multiple sites.

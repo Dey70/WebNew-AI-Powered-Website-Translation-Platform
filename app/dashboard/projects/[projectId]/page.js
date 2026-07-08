@@ -110,6 +110,7 @@ export default function ProjectDetailPage() {
       const messages = {
         no_account_for_email: "No WebNew account exists for that email yet.",
         already_a_member: "That person is already a member of this project.",
+        invite_already_pending: "That person already has a pending invite to this project.",
         already_owner: "That's you — you already own this project.",
       };
       setInviteError(messages[json.error] || json.error || "Failed to invite");
@@ -249,18 +250,25 @@ export default function ProjectDetailPage() {
       <h2 className="mt-8 text-lg font-medium text-white">Members</h2>
       <ul className="mt-2 divide-y divide-white/10 rounded-xl border border-white/10 bg-white/5 shadow-[0_10px_30px_rgba(0,0,0,0.3)]">
         <li className="flex items-center justify-between px-4 py-3">
-          <span className="text-white">Owner</span>
+          <span className="text-white">{project.owner_email || "Owner"}</span>
           <span className="text-xs text-white/40">Owner</span>
         </li>
         {members.map((member) => (
           <li key={member.id} className="flex items-center justify-between px-4 py-3">
-            <span className="text-white">{member.profiles?.email || member.user_id}</span>
+            <span className="text-white">
+              {member.profiles?.email || member.user_id}
+              {member.status === "pending" && (
+                <span className="ml-2 rounded bg-amber-400/20 px-2 py-0.5 text-xs text-amber-200">
+                  Pending
+                </span>
+              )}
+            </span>
             {project.isOwner && (
               <button
                 onClick={() => handleRemoveMember(member.user_id)}
                 className="text-sm text-brand-red-400 hover:underline"
               >
-                Remove
+                {member.status === "pending" ? "Cancel invite" : "Remove"}
               </button>
             )}
           </li>

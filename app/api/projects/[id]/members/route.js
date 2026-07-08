@@ -33,6 +33,7 @@ export async function POST(request, { params }) {
         ? 404
         : result.error === "no_account_for_email" ||
           result.error === "already_a_member" ||
+          result.error === "invite_already_pending" ||
           result.error === "already_owner"
         ? 400
         : 500;

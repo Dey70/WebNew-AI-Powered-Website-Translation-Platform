@@ -16,6 +16,8 @@ import {
   listMembers,
   inviteMember,
   removeMember,
+  listPendingInvitesForUser,
+  respondToInvite,
 } from "@/lib/projects";
 
 // Minimal chainable fake matching the exact call shapes lib/projects.js uses.
@@ -143,14 +145,51 @@ describe("lib/projects.js", () => {
       );
       expect(await userHasProjectAccess({ userId: "stranger", projectId: "p1" })).toBe(false);
     });
+
+    it("returns false for a pending (not-yet-accepted) invite -- the core security property of the invite flow", async () => {
+      // A real project_members row exists, but with status:"pending". This
+      // fake actually models column filtering (unlike the generic makeClient
+      // helper, which ignores .eq() args) so the test genuinely exercises
+      // the .eq("status", "accepted") filter in the real query -- if that
+      // filter were ever removed, this fake row would incorrectly match and
+      // the test would fail.
+      const fakeRow = { id: "m1", project_id: "p1", user_id: "invited-1", status: "pending" };
+      getServiceClient.mockReturnValue({
+        from: (table) => {
+          if (table === "projects") return { select: () => chain({ data: null, error: null }) };
+          return {
+            select: () => {
+              const filters = {};
+              const node = {
+                eq: (col, val) => {
+                  filters[col] = val;
+                  return node;
+                },
+                maybeSingle: async () => {
+                  const matches = Object.entries(filters).every(([k, v]) => fakeRow[k] === v);
+                  return { data: matches ? fakeRow : null, error: null };
+                },
+              };
+              return node;
+            },
+          };
+        },
+      });
+
+      expect(await userHasProjectAccess({ userId: "invited-1", projectId: "p1" })).toBe(false);
+    });
   });
 
   describe("getProject", () => {
-    it("returns the project for the owner", async () => {
+    it("returns the project for the owner, with the owner's email attached", async () => {
       getServiceClient.mockReturnValue(
-        makeClient({ projects: { select: () => ({ data: { id: "p1" }, error: null }) } })
+        makeClient({
+          projects: { select: () => ({ data: { id: "p1", owner_id: "owner-1" }, error: null }) },
+          profiles: { select: () => ({ data: { email: "owner@x.com" }, error: null }) },
+        })
       );
-      expect(await getProject({ userId: "owner-1", id: "p1" })).toEqual({ id: "p1" });
+      const result = await getProject({ userId: "owner-1", id: "p1" });
+      expect(result).toEqual({ id: "p1", owner_id: "owner-1", owner_email: "owner@x.com" });
     });
 
     it("returns null for a stranger without owner or member access (regression guard)", async () => {
@@ -298,31 +337,64 @@ describe("lib/projects.js", () => {
       expect(result).toEqual({ ok: false, error: "already_owner" });
     });
 
-    it("reports already_a_member on a unique-constraint conflict", async () => {
+    it("reports already_a_member (pre-check) when an accepted row already exists, without attempting an insert", async () => {
+      const client = makeClient({
+        projects: { select: () => ({ data: { id: "p1", owner_id: "owner-1" }, error: null }) },
+        profiles: { select: () => ({ data: { id: "user-2", email: "b@x.com" }, error: null }) },
+        project_members: { select: () => ({ data: { status: "accepted" }, error: null }) },
+      });
+      getServiceClient.mockReturnValue(client);
+
+      const result = await inviteMember({ ownerId: "owner-1", projectId: "p1", email: "b@x.com" });
+      expect(result).toEqual({ ok: false, error: "already_a_member" });
+      expect(client.__calls.some((c) => c.table === "project_members" && c.op === "insert")).toBe(false);
+    });
+
+    it("reports invite_already_pending (distinct from already_a_member) when the existing row hasn't been accepted yet", async () => {
       getServiceClient.mockReturnValue(
         makeClient({
           projects: { select: () => ({ data: { id: "p1", owner_id: "owner-1" }, error: null }) },
           profiles: { select: () => ({ data: { id: "user-2", email: "b@x.com" }, error: null }) },
-          project_members: { insert: () => ({ data: null, error: { code: "23505", message: "dup" } }) },
+          project_members: { select: () => ({ data: { status: "pending" }, error: null }) },
+        })
+      );
+      const result = await inviteMember({ ownerId: "owner-1", projectId: "p1", email: "b@x.com" });
+      expect(result).toEqual({ ok: false, error: "invite_already_pending" });
+    });
+
+    it("reports already_a_member on a unique-constraint conflict (race-condition fallback)", async () => {
+      getServiceClient.mockReturnValue(
+        makeClient({
+          projects: { select: () => ({ data: { id: "p1", owner_id: "owner-1" }, error: null }) },
+          profiles: { select: () => ({ data: { id: "user-2", email: "b@x.com" }, error: null }) },
+          project_members: {
+            select: () => ({ data: null, error: null }),
+            insert: () => ({ data: null, error: { code: "23505", message: "dup" } }),
+          },
         })
       );
       const result = await inviteMember({ ownerId: "owner-1", projectId: "p1", email: "b@x.com" });
       expect(result).toEqual({ ok: false, error: "already_a_member" });
     });
 
-    it("adds the member on success", async () => {
-      getServiceClient.mockReturnValue(
-        makeClient({
-          projects: { select: () => ({ data: { id: "p1", owner_id: "owner-1" }, error: null }) },
-          profiles: { select: () => ({ data: { id: "user-2", email: "b@x.com" }, error: null }) },
-          project_members: {
-            insert: () => ({ data: { id: "m1", user_id: "user-2", created_at: "2026-01-01" }, error: null }),
-          },
-        })
-      );
+    it("adds the member as pending on success", async () => {
+      const client = makeClient({
+        projects: { select: () => ({ data: { id: "p1", owner_id: "owner-1" }, error: null }) },
+        profiles: { select: () => ({ data: { id: "user-2", email: "b@x.com" }, error: null }) },
+        project_members: {
+          select: () => ({ data: null, error: null }),
+          insert: () => ({ data: { id: "m1", user_id: "user-2", status: "pending", created_at: "2026-01-01" }, error: null }),
+        },
+      });
+      getServiceClient.mockReturnValue(client);
+
       const result = await inviteMember({ ownerId: "owner-1", projectId: "p1", email: "b@x.com" });
       expect(result.ok).toBe(true);
       expect(result.data.user_id).toBe("user-2");
+      expect(result.data.status).toBe("pending");
+
+      const insertCall = client.__calls.find((c) => c.table === "project_members" && c.op === "insert");
+      expect(insertCall.payload.status).toBe("pending");
     });
   });
 
@@ -391,6 +463,119 @@ describe("lib/projects.js", () => {
 
       const result = await listMembers({ userId: "owner-1", projectId: "p1" });
       expect(result).toEqual([{ id: "m1", user_id: "user-2" }]);
+    });
+  });
+
+  describe("respondToInvite", () => {
+    it("reports not_found when there is no pending invite for that user/project", async () => {
+      getServiceClient.mockReturnValue(
+        makeClient({ project_members: { select: () => ({ data: null, error: null }) } })
+      );
+      const result = await respondToInvite({ userId: "invited-1", projectId: "p1", accept: true });
+      expect(result).toEqual({ ok: false, error: "not_found" });
+    });
+
+    it("reports not_found for an already-accepted row (nothing left to respond to)", async () => {
+      getServiceClient.mockReturnValue(
+        makeClient({
+          project_members: { select: () => ({ data: { id: "m1", status: "accepted" }, error: null }) },
+        })
+      );
+      const result = await respondToInvite({ userId: "invited-1", projectId: "p1", accept: true });
+      expect(result).toEqual({ ok: false, error: "not_found" });
+    });
+
+    it("only lets the invited user respond to their own invite (scoped by user_id, regression guard)", async () => {
+      const capturedEq = [];
+      getServiceClient.mockReturnValue({
+        from: () => ({
+          select: () => {
+            const node = {
+              eq: (col, val) => {
+                capturedEq.push([col, val]);
+                return node;
+              },
+              maybeSingle: async () => ({ data: { id: "m1", status: "pending" }, error: null }),
+            };
+            return node;
+          },
+          update: () => ({ eq: () => ({ eq: () => Promise.resolve({ error: null }) }) }),
+        }),
+      });
+
+      await respondToInvite({ userId: "invited-1", projectId: "p1", accept: true });
+      expect(capturedEq).toEqual([["project_id", "p1"], ["user_id", "invited-1"]]);
+    });
+
+    it("accept updates status to accepted", async () => {
+      const client = makeClient({
+        project_members: {
+          select: () => ({ data: { id: "m1", status: "pending" }, error: null }),
+          update: () => ({ error: null }),
+        },
+      });
+      getServiceClient.mockReturnValue(client);
+
+      const result = await respondToInvite({ userId: "invited-1", projectId: "p1", accept: true });
+      expect(result).toEqual({ ok: true, accepted: true });
+      const updateCall = client.__calls.find((c) => c.table === "project_members" && c.op === "update");
+      expect(updateCall.patch.status).toBe("accepted");
+    });
+
+    it("decline deletes the row outright rather than leaving a declined-state row", async () => {
+      const client = makeClient({
+        project_members: {
+          select: () => ({ data: { id: "m1", status: "pending" }, error: null }),
+          delete: () => ({ error: null }),
+        },
+      });
+      getServiceClient.mockReturnValue(client);
+
+      const result = await respondToInvite({ userId: "invited-1", projectId: "p1", accept: false });
+      expect(result).toEqual({ ok: true, accepted: false });
+      expect(client.__calls.some((c) => c.table === "project_members" && c.op === "delete")).toBe(true);
+      expect(client.__calls.some((c) => c.table === "project_members" && c.op === "update")).toBe(false);
+    });
+  });
+
+  describe("listPendingInvitesForUser", () => {
+    it("returns an empty list when there are no pending invites", async () => {
+      getServiceClient.mockReturnValue(
+        makeClient({ project_members: { select: () => ({ data: [], error: null }) } })
+      );
+      expect(await listPendingInvitesForUser({ userId: "invited-1" })).toEqual([]);
+    });
+
+    it("attaches the project name and inviting owner's email to each invite", async () => {
+      getServiceClient.mockReturnValue({
+        from: (table) => {
+          if (table === "project_members") {
+            return {
+              select: () =>
+                chain({
+                  data: [{ id: "m1", project_id: "p1", created_at: "2026-01-01" }],
+                  error: null,
+                }),
+            };
+          }
+          if (table === "projects") {
+            return { select: () => chain({ data: [{ id: "p1", name: "Acme", owner_id: "owner-1" }], error: null }) };
+          }
+          // profiles
+          return { select: () => chain({ data: [{ id: "owner-1", email: "owner@x.com" }], error: null }) };
+        },
+      });
+
+      const result = await listPendingInvitesForUser({ userId: "invited-1" });
+      expect(result).toEqual([
+        {
+          id: "m1",
+          project_id: "p1",
+          created_at: "2026-01-01",
+          projectName: "Acme",
+          ownerEmail: "owner@x.com",
+        },
+      ]);
     });
   });
 });

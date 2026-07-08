@@ -221,6 +221,18 @@ remove members).
   access, member-via-project access, and a stranger being denied for every
   affected function.
 
+**Follow-up: invite accept/decline + owner identity** — an invite no longer
+grants access instantly; `project_members` gained a `status` column
+(migration `009_add_project_members_status.sql`, defaulting existing rows to
+`'accepted'` so already-established access wasn't silently revoked) and
+`userHasProjectAccess` only counts `status = 'accepted'` rows. The invited
+person sees a "Pending invites" section at the top of their dashboard
+(`app/api/invites/**`) with Accept/Decline; declining deletes the row
+outright rather than leaving a declined-state row behind. The Members tab
+now shows the owner's actual email (`getProject` attaches `owner_email`)
+instead of the literal string "Owner", and a "Pending" badge on invites that
+haven't been accepted yet.
+
 ## 🚀 Tech Stack
 
 - **Next.js 14** (Pages Router) + React 18 — the app is one Next.js monolith;
@@ -297,6 +309,7 @@ remove members).
 │   ├── 006_add_api_key_label.sql              # V2.0 Milestone 3
 │   ├── 007_add_site_provider.sql              # V3.0
 │   ├── 008_create_project_members.sql         # V4.0 Milestone 3
+│   ├── 009_add_project_members_status.sql     # V4.0 Milestone 3 follow-up
 │   ├── create-site.js        # Local-only onboarding CLI (issues an API key)
 │   ├── list-sites.js
 │   └── revoke-api-key.js
@@ -332,7 +345,7 @@ remove members).
    then `003_add_site_id_to_translation_history.sql`, then
    `004_create_profiles_and_projects.sql`, then `005_add_projects_slug_unique.sql`,
    then `006_add_api_key_label.sql`, then `007_add_site_provider.sql`, then
-   `008_create_project_members.sql`.
+   `008_create_project_members.sql`, then `009_add_project_members_status.sql`.
    Migration 003 truncates `translation_history` (it only ever held unscoped
    demo data).
 
